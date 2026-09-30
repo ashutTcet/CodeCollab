@@ -8,10 +8,11 @@ const PERSIST_DEBOUNCE_MS = 1500;
 const SESSION_TTL_MS = 2 * 60 * 1000;
 
 const LANGUAGE_TEMPLATES = {
-  javascript: `function main() {\n  console.log("Hello CodeCollab");\n}\n\nmain();\n`,
-  cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n`,
-  python: `def main():\n    pass\n\nif __name__ == "__main__":\n    main()\n`,
-  java: `public class Main {\n    public static void main(String[] args) {\n    }\n}\n`,
+  javascript: `function main() {\n  console.log("Hello CodeCollab!");\n}\n\nmain();\n`,
+  python: `def main():\n    print("Hello CodeCollab!")\n\nif __name__ == "__main__":\n    main()\n`,
+  java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello CodeCollab!");\n    }\n}\n`,
+  cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello CodeCollab!" << endl;\n    return 0;\n}\n`,
+  c: `#include <stdio.h>\n\nint main() {\n    printf("Hello CodeCollab!\\n");\n    return 0;\n}\n`,
 };
 
 class CollaborationService {
@@ -37,6 +38,20 @@ class CollaborationService {
 
   getStarterTemplate(language) {
     return LANGUAGE_TEMPLATES[language] || LANGUAGE_TEMPLATES.javascript;
+  }
+
+  /**
+   * Check if the current Yjs document content matches any known starter template.
+   */
+  isStarterTemplate(content) {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return true;
+    }
+
+    return Object.values(LANGUAGE_TEMPLATES).some(
+      (template) => template.trim() === trimmed
+    );
   }
 
   async authorizeClassroomAccess({ classroomId, userId, role }) {
@@ -145,6 +160,35 @@ class CollaborationService {
     this.schedulePersist(session.classroomId);
 
     return normalized;
+  }
+
+  /**
+   * Replace the Yjs document content with the new language's starter template,
+   * but only if the current content is a known starter template (unchanged).
+   * Returns the Yjs update to broadcast if content was replaced, or null.
+   */
+  replaceWithStarterTemplate(session, newLanguage) {
+    const yText = session.doc.getText(CODE_TEXT_KEY);
+    const currentContent = yText.toString();
+    const isStarter = this.isStarterTemplate(currentContent);
+
+    if (!isStarter) {
+      // Content has been modified by the user — do not replace silently.
+      return { replaced: false, update: null };
+    }
+
+    const newTemplate = this.getStarterTemplate(newLanguage);
+
+    session.doc.transact(() => {
+      yText.delete(0, yText.length);
+      yText.insert(0, newTemplate);
+    }, 'language-switch');
+
+    session.dirty = true;
+    this.schedulePersist(session.classroomId);
+
+    const update = Y.encodeStateAsUpdate(session.doc);
+    return { replaced: true, update };
   }
 
   addParticipant(session, socketId, user) {

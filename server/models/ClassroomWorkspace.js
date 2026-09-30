@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const SUPPORTED_LANGUAGES = ['javascript', 'cpp', 'python', 'java'];
+const SUPPORTED_LANGUAGES = ['javascript', 'cpp', 'python', 'java', 'c'];
 
 const classroomWorkspaceSchema = new mongoose.Schema(
   {

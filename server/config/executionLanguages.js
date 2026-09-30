@@ -5,12 +5,6 @@ const LANGUAGE_CONFIG = {
     monacoLanguage: 'javascript',
     judge0LanguageId: 63,
   },
-  cpp: {
-    key: 'cpp',
-    label: 'C++',
-    monacoLanguage: 'cpp',
-    judge0LanguageId: 54,
-  },
   python: {
     key: 'python',
     label: 'Python',
@@ -22,6 +16,18 @@ const LANGUAGE_CONFIG = {
     label: 'Java',
     monacoLanguage: 'java',
     judge0LanguageId: 62,
+  },
+  cpp: {
+    key: 'cpp',
+    label: 'C++',
+    monacoLanguage: 'cpp',
+    judge0LanguageId: 54,
+  },
+  c: {
+    key: 'c',
+    label: 'C',
+    monacoLanguage: 'c',
+    judge0LanguageId: 50,
   },
 };
 

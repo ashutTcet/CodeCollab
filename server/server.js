@@ -16,9 +16,11 @@ connectDB();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
+const CLIENT_ORIGIN = process.env.CLIENT_URL || 'http://localhost:5174';
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: CLIENT_ORIGIN,
     credentials: true,
   })
 );
@@ -99,6 +101,7 @@ httpServer.on('error', (error) => {
 httpServer.listen(PORT, () => {
   console.log(`\n🚀 CodeCollab API running on http://localhost:${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   CORS origin : ${CLIENT_ORIGIN}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
 });
 

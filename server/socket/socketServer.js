@@ -113,7 +113,7 @@ async function handleLeave(io, socket) {
 async function initializeSocketServer(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: process.env.CLIENT_URL || 'http://localhost:5174',
       credentials: true,
     },
   });
@@ -263,6 +263,7 @@ async function initializeSocketServer(httpServer) {
     socket.on('language:update', async (payload = {}) => {
       try {
         const classroomId = String(payload.classroomId || '').trim();
+        const forceReplace = Boolean(payload.forceReplace);
         if (!classroomId || socket.data.classroomId !== classroomId) {
           return;
         }
@@ -278,15 +279,54 @@ async function initializeSocketServer(httpServer) {
           socket.user.id
         );
 
-        io.to(collaborationService.roomName(classroomId)).emit('language:update', {
+        // Try to replace document content with the new language starter template.
+        // If the user has modified the code (non-starter), `replaced` will be false
+        // unless the client explicitly sent forceReplace=true.
+        let contentReplaced = false;
+        let documentUpdate = null;
+
+        if (forceReplace) {
+          // Client confirmed they want to replace user-modified code.
+          const yText = session.doc.getText('code');
+          const Y = require('yjs');
+          const template = collaborationService.getStarterTemplate(language);
+          session.doc.transact(() => {
+            yText.delete(0, yText.length);
+            yText.insert(0, template);
+          }, 'language-switch');
+          session.dirty = true;
+          collaborationService.schedulePersist(classroomId);
+          documentUpdate = Buffer.from(Y.encodeStateAsUpdate(session.doc));
+          contentReplaced = true;
+        } else {
+          const result = collaborationService.replaceWithStarterTemplate(session, language);
+          contentReplaced = result.replaced;
+          documentUpdate = result.update ? Buffer.from(result.update) : null;
+        }
+
+        const roomName = collaborationService.roomName(classroomId);
+
+        // Broadcast the language change to all participants
+        io.to(roomName).emit('language:update', {
           classroomId,
           language,
+          contentReplaced,
           updatedBy: {
             id: socket.user.id,
             name: socket.user.name,
             role: socket.user.role,
           },
         });
+
+        // If content was replaced, broadcast the full document sync
+        // so every participant gets the new starter code.
+        if (contentReplaced && documentUpdate) {
+          io.to(roomName).emit('document:sync', {
+            classroomId,
+            language,
+            update: documentUpdate,
+          });
+        }
       } catch (error) {
         const message = error.status && error.status < 500
           ? error.message

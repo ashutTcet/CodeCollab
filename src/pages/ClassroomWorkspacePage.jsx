@@ -8,17 +8,33 @@ import { useAuth } from '../contexts/AuthContext';
 
 const FALLBACK_LANGUAGES = [
   { key: 'javascript', label: 'JavaScript', monacoLanguage: 'javascript' },
-  { key: 'cpp', label: 'C++', monacoLanguage: 'cpp' },
   { key: 'python', label: 'Python', monacoLanguage: 'python' },
   { key: 'java', label: 'Java', monacoLanguage: 'java' },
+  { key: 'cpp', label: 'C++', monacoLanguage: 'cpp' },
+  { key: 'c', label: 'C', monacoLanguage: 'c' },
 ];
 
 const MONACO_LANGUAGE_MAP = {
   javascript: 'javascript',
-  cpp: 'cpp',
   python: 'python',
   java: 'java',
+  cpp: 'cpp',
+  c: 'c',
 };
+
+const STARTER_TEMPLATES = {
+  javascript: `function main() {\n  console.log("Hello CodeCollab!");\n}\n\nmain();\n`,
+  python: `def main():\n    print("Hello CodeCollab!")\n\nif __name__ == "__main__":\n    main()\n`,
+  java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello CodeCollab!");\n    }\n}\n`,
+  cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello CodeCollab!" << endl;\n    return 0;\n}\n`,
+  c: `#include <stdio.h>\n\nint main() {\n    printf("Hello CodeCollab!\\n");\n    return 0;\n}\n`,
+};
+
+function isStarterTemplate(content) {
+  const trimmed = (content || '').trim();
+  if (!trimmed) return true;
+  return Object.values(STARTER_TEMPLATES).some((t) => t.trim() === trimmed);
+}
 
 function normalizeIncomingBinary(input) {
   if (!input) {
@@ -312,6 +328,22 @@ export default function ClassroomWorkspacePage() {
   );
 
   const handleLanguageChange = (nextLanguage) => {
+    if (nextLanguage === language) return;
+
+    // Get the current editor content and check if it is unchanged starter code.
+    const currentContent = yTextRef.current
+      ? yTextRef.current.toString()
+      : editorRef.current?.getModel()?.getValue() || '';
+
+    const needsConfirmation = !isStarterTemplate(currentContent);
+
+    if (needsConfirmation) {
+      const confirmed = window.confirm(
+        'Switching language will replace the current code with a new starter template. Continue?'
+      );
+      if (!confirmed) return;
+    }
+
     setLanguage(nextLanguage);
 
     const editor = editorRef.current;
@@ -327,6 +359,7 @@ export default function ClassroomWorkspacePage() {
       socketRef.current.emit('language:update', {
         classroomId,
         language: nextLanguage,
+        forceReplace: needsConfirmation,
       });
     }
   };
@@ -460,6 +493,10 @@ export default function ClassroomWorkspacePage() {
           monaco.editor.setModelLanguage(model, getEditorLanguage(nextLanguage));
         }
       }
+
+      // If the server replaced content, a document:sync will follow
+      // which will re-bind the Yjs document with the new content.
+      // No additional action needed here — bindYjsToEditor handles it.
     });
 
     socket.on('presence:update', (payload = {}) => {
