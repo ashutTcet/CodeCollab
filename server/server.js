@@ -39,17 +39,18 @@ const studentRouter = require('./routes/student');
 const teacherRouter = require('./routes/teacher');
 const classroomRouter = require('./routes/classrooms');
 const codeRouter = require('./routes/code');
+const aiRouter = require('./routes/ai');
 
 app.use('/api/auth', authRouter);
 app.use('/api/student', studentRouter);
 app.use('/api/teacher', teacherRouter);
 app.use('/api/classrooms', classroomRouter);
 app.use('/api/code', codeRouter);
+app.use('/api/ai', aiRouter);
 
 // Future route stubs (not yet implemented)
 // app.use('/api/sessions',  require('./routes/sessions'));
 // app.use('/api/execute',   require('./routes/execute'));
-// app.use('/api/ai',        require('./routes/ai'));
 // app.use('/api/progress',  require('./routes/progress'));
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────

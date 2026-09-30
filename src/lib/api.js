@@ -103,4 +103,32 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  explainError(payload) {
+    return request('/ai/explain', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getAIHint(payload) {
+    return request('/ai/hint', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  debugWithAI(payload) {
+    return request('/ai/debug', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  chatWithAI(payload) {
+    return request('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
