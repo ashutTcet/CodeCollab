@@ -1,5 +1,6 @@
 const collaborationService = require('../services/collaborationService');
 const judge0Service = require('../services/judge0Service');
+const progressService = require('../services/progressService');
 const {
   getExecutionLanguage,
   listExecutionLanguages,
@@ -59,16 +60,11 @@ function normalizeExecutionResult(result, languageKey) {
 
 function validatePayload(payload) {
   const classroomId = String(payload.classroomId || '').trim();
-  const language = String(payload.language || '').trim().toLowerCase();
   const sourceCode = String(payload.sourceCode || '');
   const stdin = String(payload.stdin || '');
 
   if (!classroomId) {
     return { error: 'Classroom ID is required.' };
-  }
-
-  if (!language) {
-    return { error: 'Language is required.' };
   }
 
   if (!sourceCode.trim()) {
@@ -85,7 +81,6 @@ function validatePayload(payload) {
 
   return {
     classroomId,
-    language,
     sourceCode,
     stdin,
   };
@@ -111,19 +106,19 @@ async function executeCode(req, res, next) {
       });
     }
 
-    const selectedLanguage = getExecutionLanguage(payload.language);
-
-    if (!selectedLanguage) {
-      return res.status(400).json({
-        message: 'Unsupported language selected.',
-      });
-    }
-
-    await collaborationService.authorizeClassroomAccess({
+    const classroom = await collaborationService.authorizeClassroomAccess({
       classroomId: payload.classroomId,
       userId: req.user.id,
       role: req.user.role,
     });
+
+    const selectedLanguage = getExecutionLanguage(classroom.subject);
+
+    if (!selectedLanguage) {
+      return res.status(500).json({
+        message: 'Classroom language is not configured for execution.',
+      });
+    }
 
     const judge0Result = await judge0Service.runCode({
       languageId: selectedLanguage.judge0LanguageId,
@@ -132,6 +127,20 @@ async function executeCode(req, res, next) {
     });
 
     const normalized = normalizeExecutionResult(judge0Result, selectedLanguage.key);
+
+    await progressService.recordExecution({
+      studentId: req.user.id,
+      classroomId: payload.classroomId,
+      language: classroom.subject,
+      judge0LanguageId: selectedLanguage.judge0LanguageId,
+      judge0SubmissionToken: judge0Result.token || '',
+      status: normalized.status,
+      statusLabel: normalized.statusLabel,
+      executionTime: normalized.executionTime,
+      memory: normalized.memory,
+      sourceCodeLength: payload.sourceCode.length,
+      stdinLength: payload.stdin.length,
+    });
 
     return res.status(200).json(normalized);
   } catch (error) {

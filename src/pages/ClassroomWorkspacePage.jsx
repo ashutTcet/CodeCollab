@@ -5,39 +5,16 @@ import { io } from 'socket.io-client';
 import * as Y from 'yjs';
 import '@livekit/components-styles';
 import { api, SOCKET_BASE_URL } from '../lib/api';
+import { getMonacoLanguage, getStarterTemplate, listClassroomSubjects } from '../lib/classroomLanguages';
 import { useAuth } from '../contexts/AuthContext';
 import CommunicationPanel from '../components/communication/CommunicationPanel';
 
 const MAX_CLASSROOM_CHAT_LENGTH = 2000;
 
-const FALLBACK_LANGUAGES = [
-  { key: 'javascript', label: 'JavaScript', monacoLanguage: 'javascript' },
-  { key: 'python', label: 'Python', monacoLanguage: 'python' },
-  { key: 'java', label: 'Java', monacoLanguage: 'java' },
-  { key: 'cpp', label: 'C++', monacoLanguage: 'cpp' },
-  { key: 'c', label: 'C', monacoLanguage: 'c' },
-];
-
-const MONACO_LANGUAGE_MAP = {
-  javascript: 'javascript',
-  python: 'python',
-  java: 'java',
-  cpp: 'cpp',
-  c: 'c',
-};
-
-const STARTER_TEMPLATES = {
-  javascript: `function main() {\n  console.log("Hello CodeCollab!");\n}\n\nmain();\n`,
-  python: `def main():\n    print("Hello CodeCollab!")\n\nif __name__ == "__main__":\n    main()\n`,
-  java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello CodeCollab!");\n    }\n}\n`,
-  cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello CodeCollab!" << endl;\n    return 0;\n}\n`,
-  c: `#include <stdio.h>\n\nint main() {\n    printf("Hello CodeCollab!\\n");\n    return 0;\n}\n`,
-};
-
 function isStarterTemplate(content) {
   const trimmed = (content || '').trim();
   if (!trimmed) return true;
-  return Object.values(STARTER_TEMPLATES).some((t) => t.trim() === trimmed);
+  return listClassroomSubjects().some((subject) => getStarterTemplate(subject.key).trim() === trimmed);
 }
 
 function normalizeIncomingBinary(input) {
@@ -80,7 +57,7 @@ function getStatusClass(status) {
 }
 
 function getEditorLanguage(language) {
-  return MONACO_LANGUAGE_MAP[language] || 'javascript';
+  return getMonacoLanguage(language);
 }
 
 export default function ClassroomWorkspacePage() {
@@ -93,8 +70,7 @@ export default function ClassroomWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [socketError, setSocketError] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [language, setLanguage] = useState('javascript');
-  const [executionLanguages, setExecutionLanguages] = useState(FALLBACK_LANGUAGES);
+  const [language, setLanguage] = useState('JavaScript');
   const [participants, setParticipants] = useState([]);
 
   const [stdin, setStdin] = useState('');
@@ -229,7 +205,7 @@ export default function ClassroomWorkspacePage() {
   const cursorSentAtRef = useRef(0);
   const joinedRef = useRef(false);
   const pendingSyncUpdateRef = useRef(null);
-  const pendingSyncLanguageRef = useRef('javascript');
+  const pendingSyncLanguageRef = useRef('JavaScript');
   const chatEndRef = useRef(null);
   const typingStopTimerRef = useRef(null);
 
@@ -293,7 +269,7 @@ export default function ClassroomWorkspacePage() {
       const monaco = monacoRef.current;
       if (!editor || !monaco || !syncUpdate) {
         pendingSyncUpdateRef.current = syncUpdate;
-        pendingSyncLanguageRef.current = syncedLanguage || 'javascript';
+        pendingSyncLanguageRef.current = syncedLanguage || 'JavaScript';
         return;
       }
 
@@ -444,43 +420,6 @@ export default function ClassroomWorkspacePage() {
     [classroomId]
   );
 
-  const handleLanguageChange = (nextLanguage) => {
-    if (nextLanguage === language) return;
-
-    // Get the current editor content and check if it is unchanged starter code.
-    const currentContent = yTextRef.current
-      ? yTextRef.current.toString()
-      : editorRef.current?.getModel()?.getValue() || '';
-
-    const needsConfirmation = !isStarterTemplate(currentContent);
-
-    if (needsConfirmation) {
-      const confirmed = window.confirm(
-        'Switching language will replace the current code with a new starter template. Continue?'
-      );
-      if (!confirmed) return;
-    }
-
-    setLanguage(nextLanguage);
-
-    const editor = editorRef.current;
-    const monaco = monacoRef.current;
-    if (editor && monaco) {
-      const model = editor.getModel();
-      if (model) {
-        monaco.editor.setModelLanguage(model, getEditorLanguage(nextLanguage));
-      }
-    }
-
-    if (socketRef.current && joinedRef.current) {
-      socketRef.current.emit('language:update', {
-        classroomId,
-        language: nextLanguage,
-        forceReplace: needsConfirmation,
-      });
-    }
-  };
-
   const cleanupRealtimeState = useCallback(() => {
     joinedRef.current = false;
 
@@ -576,7 +515,7 @@ export default function ClassroomWorkspacePage() {
         return;
       }
 
-      const nextLanguage = payload.language || 'javascript';
+      const nextLanguage = payload.language || 'JavaScript';
       setLanguage(nextLanguage);
       joinedRef.current = true;
 
@@ -601,7 +540,7 @@ export default function ClassroomWorkspacePage() {
         return;
       }
 
-      const nextLanguage = payload.language || 'javascript';
+      const nextLanguage = payload.language || 'JavaScript';
       setLanguage(nextLanguage);
 
       const editor = editorRef.current;
@@ -1066,7 +1005,6 @@ export default function ClassroomWorkspacePage() {
     try {
       const result = await api.executeCode({
         classroomId,
-        language,
         sourceCode,
         stdin,
       });
@@ -1087,7 +1025,7 @@ export default function ClassroomWorkspacePage() {
     } finally {
       setIsExecuting(false);
     }
-  }, [classroomId, isExecuting, language, stdin]);
+  }, [classroomId, isExecuting, stdin]);
 
   useEffect(() => {
     let isActive = true;
@@ -1103,6 +1041,7 @@ export default function ClassroomWorkspacePage() {
           return;
         }
 
+        setLanguage(response.classroom?.subject || 'JavaScript');
         setClassroom(response.classroom || null);
       } catch (error) {
         if (isActive) {
@@ -1168,33 +1107,6 @@ export default function ClassroomWorkspacePage() {
       isActive = false;
     };
   }, [classroomId]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadExecutionLanguages() {
-      try {
-        const response = await api.getExecutionLanguages();
-        const languages = Array.isArray(response.languages) ? response.languages : [];
-
-        if (!isActive || languages.length === 0) {
-          return;
-        }
-
-        setExecutionLanguages(languages);
-      } catch (_error) {
-        if (isActive) {
-          setExecutionLanguages(FALLBACK_LANGUAGES);
-        }
-      }
-    }
-
-    loadExecutionLanguages();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!classroom || loadError) {
@@ -1310,19 +1222,7 @@ export default function ClassroomWorkspacePage() {
           >
             <div className="border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <label htmlFor="workspace-language" className="text-sm text-slate-700 font-medium">Language</label>
-                <select
-                  id="workspace-language"
-                  value={language}
-                  onChange={(event) => handleLanguageChange(event.target.value)}
-                  className="px-3 py-2 text-sm border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                >
-                  {executionLanguages.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <span className="text-sm font-medium text-slate-700">Subject: {classroom.subject}</span>
                 <button type="button" className="btn-primary" onClick={runCode} disabled={isExecuting || !isConnected}>
                   {isExecuting ? 'Running...' : 'Run Code'}
                 </button>
@@ -1335,7 +1235,7 @@ export default function ClassroomWorkspacePage() {
               <div className="flex-1 min-h-0 relative">
                 <Editor
                   height="100%"
-                  defaultLanguage="javascript"
+                  defaultLanguage={getEditorLanguage(classroom.subject)}
                   options={{
                     minimap: { enabled: false },
                     smoothScrolling: true,

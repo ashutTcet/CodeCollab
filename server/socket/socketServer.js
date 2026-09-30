@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const cookie = require('cookie');
 const collaborationService = require('../services/collaborationService');
+const progressService = require('../services/progressService');
 const User = require('../models/User');
 const ChatMessage = require('../models/ChatMessage');
 
@@ -125,6 +126,18 @@ async function handleLeave(io, socket) {
     return;
   }
 
+  const activeProgressSession = socket.data.progressSession;
+  if (activeProgressSession && activeProgressSession.classroomId === activeClassroomId) {
+    const durationMinutes = (Date.now() - activeProgressSession.startedAt) / 60000;
+    await progressService.recordCodingSession({
+      studentId: socket.user.id,
+      language: activeProgressSession.subject,
+      durationMinutes,
+    }).catch((error) => {
+      console.error('[ProgressSessionError]', error);
+    });
+  }
+
   const roomName = collaborationService.roomName(activeClassroomId);
   const session = collaborationService.sessions.get(activeClassroomId);
 
@@ -144,12 +157,13 @@ async function handleLeave(io, socket) {
 
   socket.leave(roomName);
   socket.data.classroomId = null;
+  socket.data.progressSession = null;
 }
 
 async function initializeSocketServer(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5174',
+      origin: process.env.CLIENT_URL || 'http://localhost:5173',
       credentials: true,
     },
   });
@@ -204,6 +218,7 @@ async function initializeSocketServer(httpServer) {
 
   io.on('connection', (socket) => {
     socket.data.classroomId = null;
+    socket.data.progressSession = null;
 
     socket.on('classroom:join', async (payload = {}) => {
       try {
@@ -213,7 +228,7 @@ async function initializeSocketServer(httpServer) {
           return;
         }
 
-        await collaborationService.authorizeClassroomAccess({
+        const classroom = await collaborationService.authorizeClassroomAccess({
           classroomId,
           userId: socket.user.id,
           role: socket.user.role,
@@ -223,11 +238,17 @@ async function initializeSocketServer(httpServer) {
           await handleLeave(io, socket);
         }
 
-        const session = await collaborationService.ensureSession(classroomId);
+        const session = await collaborationService.ensureSession(classroomId, classroom.subject);
         const roomName = collaborationService.roomName(classroomId);
 
         socket.join(roomName);
         socket.data.classroomId = classroomId;
+        socket.data.progressSession = {
+          classroomId,
+          subject: classroom.subject,
+          startedAt: Date.now(),
+        };
+
         collaborationService.addParticipant(session, socket.id, socket.user);
 
         socket.emit('document:sync', {
@@ -389,70 +410,11 @@ async function initializeSocketServer(httpServer) {
     socket.on('language:update', async (payload = {}) => {
       try {
         const classroomId = String(payload.classroomId || '').trim();
-        const forceReplace = Boolean(payload.forceReplace);
         if (!classroomId || socket.data.classroomId !== classroomId) {
           return;
         }
 
-        const session = collaborationService.sessions.get(classroomId);
-        if (!session) {
-          return;
-        }
-
-        const language = collaborationService.updateLanguage(
-          session,
-          payload.language,
-          socket.user.id
-        );
-
-        // Try to replace document content with the new language starter template.
-        // If the user has modified the code (non-starter), `replaced` will be false
-        // unless the client explicitly sent forceReplace=true.
-        let contentReplaced = false;
-        let documentUpdate = null;
-
-        if (forceReplace) {
-          // Client confirmed they want to replace user-modified code.
-          const yText = session.doc.getText('code');
-          const Y = require('yjs');
-          const template = collaborationService.getStarterTemplate(language);
-          session.doc.transact(() => {
-            yText.delete(0, yText.length);
-            yText.insert(0, template);
-          }, 'language-switch');
-          session.dirty = true;
-          collaborationService.schedulePersist(classroomId);
-          documentUpdate = Buffer.from(Y.encodeStateAsUpdate(session.doc));
-          contentReplaced = true;
-        } else {
-          const result = collaborationService.replaceWithStarterTemplate(session, language);
-          contentReplaced = result.replaced;
-          documentUpdate = result.update ? Buffer.from(result.update) : null;
-        }
-
-        const roomName = collaborationService.roomName(classroomId);
-
-        // Broadcast the language change to all participants
-        io.to(roomName).emit('language:update', {
-          classroomId,
-          language,
-          contentReplaced,
-          updatedBy: {
-            id: socket.user.id,
-            name: socket.user.name,
-            role: socket.user.role,
-          },
-        });
-
-        // If content was replaced, broadcast the full document sync
-        // so every participant gets the new starter code.
-        if (contentReplaced && documentUpdate) {
-          io.to(roomName).emit('document:sync', {
-            classroomId,
-            language,
-            update: documentUpdate,
-          });
-        }
+        emitClassroomError(socket, 'Classroom language is fixed and cannot be changed from the workspace.');
       } catch (error) {
         const message = error.status && error.status < 500
           ? error.message

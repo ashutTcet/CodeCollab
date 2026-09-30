@@ -16,12 +16,14 @@ connectDB();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-const CLIENT_ORIGIN = process.env.CLIENT_URL || 'http://localhost:5174';
+const CLIENT_ORIGIN = process.env.CLIENT_URL || 'http://localhost:5173';
 
 app.use(
   cors({
     origin: CLIENT_ORIGIN,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 app.use(cookieParser());
@@ -41,6 +43,7 @@ const classroomRouter = require('./routes/classrooms');
 const codeRouter = require('./routes/code');
 const aiRouter = require('./routes/ai');
 const livekitRouter = require('./routes/livekit');
+const progressRouter = require('./routes/progress');
 
 app.use('/api/auth', authRouter);
 app.use('/api/student', studentRouter);
@@ -49,6 +52,7 @@ app.use('/api/classrooms', classroomRouter);
 app.use('/api/code', codeRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/livekit', livekitRouter);
+app.use('/api/progress', progressRouter);
 
 // Future route stubs (not yet implemented)
 // app.use('/api/sessions',  require('./routes/sessions'));

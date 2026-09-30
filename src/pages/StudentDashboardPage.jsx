@@ -104,10 +104,10 @@ export default function StudentDashboardPage() {
               <p className="text-2xl font-semibold text-slate-900 mt-2">{classrooms.length}</p>
             </article>
             <article className="bg-white border border-slate-200 rounded-lg p-5">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Quick Action</p>
-              <button type="button" className="btn-secondary mt-3" onClick={() => setShowJoinModal(true)}>
-                Join Classroom
-              </button>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Progress</p>
+              <Link to="/progress" className="btn-secondary mt-3 inline-flex">
+                View Progress
+              </Link>
             </article>
             <article className="bg-white border border-slate-200 rounded-lg p-5">
               <p className="text-xs uppercase tracking-wide text-slate-500">Workspace Access</p>
@@ -118,7 +118,10 @@ export default function StudentDashboardPage() {
           <section id="classrooms" className="bg-white border border-slate-200 rounded-lg p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-slate-900">My Classrooms</h2>
-              <button type="button" className="btn-secondary" onClick={() => setShowJoinModal(true)}>Join Classroom</button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link to="/progress" className="btn-secondary">View Progress</Link>
+                <button type="button" className="btn-secondary" onClick={() => setShowJoinModal(true)}>Join Classroom</button>
+              </div>
             </div>
 
             {loading ? (
