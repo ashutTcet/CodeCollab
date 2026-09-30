@@ -7,6 +7,8 @@ import TeacherDashboardPage from './pages/TeacherDashboardPage'
 import TeacherClassroomPage from './pages/TeacherClassroomPage'
 import StudentClassroomPage from './pages/StudentClassroomPage'
 import ClassroomWorkspacePage from './pages/ClassroomWorkspacePage'
+import ProgressPage from './pages/ProgressPage'
+import TeacherClassroomProgressPage from './pages/TeacherClassroomProgressPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -43,6 +45,14 @@ export default function App() {
             }
           />
           <Route
+            path="/progress"
+            element={
+              <ProtectedRoute role="student">
+                <ProgressPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teacher/dashboard"
             element={
               <ProtectedRoute role="teacher">
@@ -63,6 +73,22 @@ export default function App() {
             element={
               <ProtectedRoute role="teacher">
                 <TeacherClassroomPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:id/progress"
+            element={
+              <ProtectedRoute role="teacher">
+                <TeacherClassroomProgressPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:id/progress/:studentId"
+            element={
+              <ProtectedRoute role="teacher">
+                <TeacherClassroomProgressPage />
               </ProtectedRoute>
             }
           />

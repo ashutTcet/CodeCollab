@@ -93,6 +93,14 @@ export const api = {
     return request(`/classrooms/${id}/students`);
   },
 
+  getClassroomProgress(classroomId) {
+    return request(`/classrooms/${classroomId}/progress`);
+  },
+
+  getClassroomStudentProgress(classroomId, studentId) {
+    return request(`/classrooms/${classroomId}/progress/${studentId}`);
+  },
+
   getClassroomMessages(classroomId, options = {}) {
     const params = new URLSearchParams();
     if (options.limit) {
@@ -112,6 +120,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  getMyProgress() {
+    return request('/progress');
+  },
+
+  getMyProgressForLanguage(language) {
+    return request(`/progress/${encodeURIComponent(language)}`);
   },
 
   getExecutionLanguages() {

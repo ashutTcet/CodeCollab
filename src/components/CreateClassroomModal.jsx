@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { listClassroomSubjects, SUPPORTED_CLASSROOM_SUBJECTS } from '../lib/classroomLanguages';
 
 const initialState = {
   name: '',
@@ -31,12 +32,12 @@ export default function CreateClassroomModal({ isOpen, onClose, onCreate }) {
       nextErrors.subject = 'Subject is required';
     }
 
-    if (formData.name.trim().length > 100) {
-      nextErrors.name = 'Classroom name must be 100 characters or fewer';
+    if (!SUPPORTED_CLASSROOM_SUBJECTS.includes(formData.subject.trim())) {
+      nextErrors.subject = 'Please choose a supported subject';
     }
 
-    if (formData.subject.trim().length > 60) {
-      nextErrors.subject = 'Subject must be 60 characters or fewer';
+    if (formData.name.trim().length > 100) {
+      nextErrors.name = 'Classroom name must be 100 characters or fewer';
     }
 
     if (formData.description.trim().length > 500) {
@@ -103,14 +104,20 @@ export default function CreateClassroomModal({ isOpen, onClose, onCreate }) {
 
           <div>
             <label htmlFor="classroom-subject" className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
-            <input
+            <select
               id="classroom-subject"
               name="subject"
               value={formData.subject}
               onChange={handleChange}
               className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-600"
-              maxLength={60}
-            />
+            >
+              <option value="">Select a subject</option>
+              {listClassroomSubjects().map((subject) => (
+                <option key={subject.key} value={subject.key}>
+                  {subject.label}
+                </option>
+              ))}
+            </select>
             {errors.subject && <p className="text-xs text-red-600 mt-1">{errors.subject}</p>}
           </div>
 

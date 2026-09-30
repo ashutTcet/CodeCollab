@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
+const { SUPPORTED_CLASSROOM_SUBJECTS, normalizeClassroomSubject } = require('../config/classroomLanguages');
 
-const SUPPORTED_LANGUAGES = ['javascript', 'cpp', 'python', 'java', 'c'];
+const SUPPORTED_LANGUAGES = SUPPORTED_CLASSROOM_SUBJECTS;
 
 const classroomWorkspaceSchema = new mongoose.Schema(
   {
@@ -14,7 +15,7 @@ const classroomWorkspaceSchema = new mongoose.Schema(
     language: {
       type: String,
       enum: SUPPORTED_LANGUAGES,
-      default: 'javascript',
+      default: 'JavaScript',
       required: true,
     },
     ydocState: {

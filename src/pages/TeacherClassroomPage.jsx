@@ -99,6 +99,9 @@ export default function TeacherClassroomPage() {
                   <Link to={`/classroom/${classroom.id}/workspace`} className="btn-primary">
                     Open Workspace
                   </Link>
+                  <Link to={`/teacher/classroom/${classroom.id}/progress`} className="btn-secondary">
+                    View Progress
+                  </Link>
                 </div>
               </section>
 

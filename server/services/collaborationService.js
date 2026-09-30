@@ -2,18 +2,11 @@ const mongoose = require('mongoose');
 const Y = require('yjs');
 const Classroom = require('../models/Classroom');
 const { ClassroomWorkspace, SUPPORTED_LANGUAGES } = require('../models/ClassroomWorkspace');
+const { normalizeClassroomSubject, getStarterTemplate } = require('../config/classroomLanguages');
 
 const CODE_TEXT_KEY = 'code';
 const PERSIST_DEBOUNCE_MS = 1500;
 const SESSION_TTL_MS = 2 * 60 * 1000;
-
-const LANGUAGE_TEMPLATES = {
-  javascript: `function main() {\n  console.log("Hello CodeCollab!");\n}\n\nmain();\n`,
-  python: `def main():\n    print("Hello CodeCollab!")\n\nif __name__ == "__main__":\n    main()\n`,
-  java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello CodeCollab!");\n    }\n}\n`,
-  cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello CodeCollab!" << endl;\n    return 0;\n}\n`,
-  c: `#include <stdio.h>\n\nint main() {\n    printf("Hello CodeCollab!\\n");\n    return 0;\n}\n`,
-};
 
 class CollaborationService {
   constructor() {
@@ -25,11 +18,11 @@ class CollaborationService {
   }
 
   isSupportedLanguage(language) {
-    return SUPPORTED_LANGUAGES.includes(language);
+    return SUPPORTED_LANGUAGES.includes(normalizeClassroomSubject(language));
   }
 
   normalizeLanguage(language) {
-    const normalized = String(language || '').trim().toLowerCase();
+    const normalized = normalizeClassroomSubject(language);
     if (!this.isSupportedLanguage(normalized)) {
       return null;
     }
@@ -37,7 +30,7 @@ class CollaborationService {
   }
 
   getStarterTemplate(language) {
-    return LANGUAGE_TEMPLATES[language] || LANGUAGE_TEMPLATES.javascript;
+    return getStarterTemplate(language);
   }
 
   /**
@@ -49,9 +42,7 @@ class CollaborationService {
       return true;
     }
 
-    return Object.values(LANGUAGE_TEMPLATES).some(
-      (template) => template.trim() === trimmed
-    );
+    return SUPPORTED_LANGUAGES.some((subject) => getStarterTemplate(subject).trim() === trimmed);
   }
 
   async authorizeClassroomAccess({ classroomId, userId, role }) {
@@ -85,7 +76,7 @@ class CollaborationService {
     return classroom;
   }
 
-  async ensureSession(classroomId) {
+  async ensureSession(classroomId, classroomSubject) {
     const existingSession = this.sessions.get(classroomId);
     if (existingSession) {
       if (existingSession.cleanupTimer) {
@@ -96,7 +87,10 @@ class CollaborationService {
     }
 
     const workspace = await ClassroomWorkspace.findOne({ classroom: classroomId });
-    const language = this.normalizeLanguage(workspace?.language) || 'javascript';
+    const language =
+      this.normalizeLanguage(classroomSubject) ||
+      this.normalizeLanguage(workspace?.language) ||
+      'JavaScript';
 
     const doc = new Y.Doc();
     const yText = doc.getText(CODE_TEXT_KEY);
@@ -150,6 +144,12 @@ class CollaborationService {
     const normalized = this.normalizeLanguage(language);
     if (!normalized) {
       const error = new Error('Invalid language selection');
+      error.status = 400;
+      throw error;
+    }
+
+    if (session.language && session.language !== normalized) {
+      const error = new Error('Classroom language is immutable');
       error.status = 400;
       throw error;
     }

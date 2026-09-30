@@ -1,0 +1,32 @@
+{
+  "C": {
+    "displayName": "C",
+    "monacoLanguage": "c",
+    "judge0LanguageId": 50,
+    "starterTemplate": "#include <stdio.h>\n\nint main(void) {\n    printf(\"Hello CodeCollab!\\n\");\n    return 0;\n}\n"
+  },
+  "C++": {
+    "displayName": "C++",
+    "monacoLanguage": "cpp",
+    "judge0LanguageId": 54,
+    "starterTemplate": "#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << \"Hello CodeCollab!\" << endl;\n    return 0;\n}\n"
+  },
+  "Java": {
+    "displayName": "Java",
+    "monacoLanguage": "java",
+    "judge0LanguageId": 62,
+    "starterTemplate": "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello CodeCollab!\");\n    }\n}\n"
+  },
+  "Python": {
+    "displayName": "Python",
+    "monacoLanguage": "python",
+    "judge0LanguageId": 71,
+    "starterTemplate": "def main():\n    print(\"Hello CodeCollab!\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+  },
+  "JavaScript": {
+    "displayName": "JavaScript",
+    "monacoLanguage": "javascript",
+    "judge0LanguageId": 63,
+    "starterTemplate": "function main() {\n  console.log(\"Hello CodeCollab!\");\n}\n\nmain();\n"
+  }
+}

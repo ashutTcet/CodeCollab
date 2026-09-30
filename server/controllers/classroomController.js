@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Classroom = require('../models/Classroom');
 const { generateRoomCode } = require('../utils/roomCode');
+const { normalizeClassroomSubject, SUPPORTED_CLASSROOM_SUBJECTS } = require('../config/classroomLanguages');
 
 function getEntityId(entity) {
   if (!entity) return null;
@@ -50,7 +51,7 @@ async function createUniqueRoomCode(subject) {
 
 function validateCreatePayload(body) {
   const name = String(body.name || '').trim();
-  const subject = String(body.subject || '').trim();
+  const subject = normalizeClassroomSubject(body.subject);
   const description = String(body.description || '').trim();
 
   if (!name) {
@@ -58,15 +59,11 @@ function validateCreatePayload(body) {
   }
 
   if (!subject) {
-    return { error: 'Subject is required' };
+    return { error: `Subject is required and must be one of: ${SUPPORTED_CLASSROOM_SUBJECTS.join(', ')}` };
   }
 
   if (name.length > 100) {
     return { error: 'Classroom name must be 100 characters or fewer' };
-  }
-
-  if (subject.length > 60) {
-    return { error: 'Subject must be 60 characters or fewer' };
   }
 
   if (description.length > 500) {
