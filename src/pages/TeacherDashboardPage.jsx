@@ -1,46 +1,89 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
+import CreateClassroomModal from '../components/CreateClassroomModal';
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default function TeacherDashboardPage() {
   const { user, logout } = useAuth();
+  const [classrooms, setClassrooms] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [dashboardData, setDashboardData] = useState({
-    activeClassrooms: [],
-    recentCodingSessions: [],
-    studentStatistics: null,
-  });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [copiedCode, setCopiedCode] = useState('');
 
   useEffect(() => {
     let isActive = true;
 
-    async function loadDashboard() {
-      try {
-        const response = await api.getTeacherDashboard();
-        const placeholders = response?.dashboard?.placeholders || {};
+    async function loadDashboardData() {
+      setLoading(true);
+      setLoadError('');
 
-        if (isActive) {
-          setDashboardData({
-            activeClassrooms: Array.isArray(placeholders.activeClassrooms) ? placeholders.activeClassrooms : [],
-            recentCodingSessions: Array.isArray(placeholders.recentCodingSessions) ? placeholders.recentCodingSessions : [],
-            studentStatistics: placeholders.studentStatistics && Object.keys(placeholders.studentStatistics).length > 0 ? placeholders.studentStatistics : null,
-          });
+      try {
+        const response = await api.getTeacherClassrooms();
+
+        if (!isActive) {
+          return;
         }
+
+        setClassrooms(Array.isArray(response.classrooms) ? response.classrooms : []);
       } catch (error) {
         if (isActive) {
-          setLoadError(error.message || 'Could not load dashboard data');
+          setLoadError(error.message || 'Unable to load your classrooms right now.');
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
         }
       }
     }
 
-    loadDashboard();
+    loadDashboardData();
 
     return () => {
       isActive = false;
     };
   }, []);
+
+  const totalStudents = useMemo(() => {
+    return classrooms.reduce((sum, classroom) => sum + Number(classroom.studentCount || 0), 0);
+  }, [classrooms]);
+
+  const recentActivity = useMemo(() => {
+    return [...classrooms]
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+      .slice(0, 4)
+      .map((classroom) => ({
+        id: classroom.id,
+        message: `Updated classroom ${classroom.name}`,
+        timestamp: classroom.updatedAt || classroom.createdAt,
+      }));
+  }, [classrooms]);
+
+  const handleCreateClassroom = async (payload) => {
+    const response = await api.createClassroom(payload);
+    const classroom = response.classroom;
+    setClassrooms((prev) => [classroom, ...prev]);
+  };
+
+  const handleCopyCode = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(''), 1500);
+    } catch (_error) {
+      setCopiedCode('');
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
@@ -51,93 +94,82 @@ export default function TeacherDashboardPage() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="section-label !text-brand-700">Teacher Dashboard</p>
-                <h1 className="text-2xl font-bold text-slate-900">Welcome, {user?.name}</h1>
-                <p className="text-sm text-slate-600 mt-2">Manage classrooms and coding sessions.</p>
+                <h1 className="text-2xl font-bold text-slate-900">{getGreeting()}, {user?.name}</h1>
+                <p className="text-sm text-slate-600 mt-2">Manage classrooms and open collaborative workspaces.</p>
               </div>
+
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="btn-primary">Create Classroom</button>
-                <button type="button" className="btn-secondary">Start Coding Session</button>
+                <button type="button" className="btn-primary" onClick={() => setShowCreateModal(true)}>Create Classroom</button>
                 <button type="button" onClick={logout} className="btn-secondary">Logout</button>
               </div>
             </div>
             {loadError && <p className="text-sm text-red-600 mt-4">{loadError}</p>}
           </section>
 
-          <section className="grid lg:grid-cols-3 gap-6">
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-slate-900">Profile</h2>
-              <dl className="mt-4 space-y-2 text-sm text-slate-700">
-                <div>
-                  <dt className="font-medium">Full Name</dt>
-                  <dd>{user?.name}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium">Email</dt>
-                  <dd>{user?.email}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium">Role</dt>
-                  <dd className="capitalize">{user?.role}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div id="active-sessions" className="bg-white border border-slate-200 rounded-lg p-6 lg:col-span-2">
-              <h2 className="text-lg font-semibold text-slate-900">Active Sessions</h2>
-              {dashboardData.recentCodingSessions.length === 0 ? (
-                <p className="text-sm text-slate-600 mt-3">No sessions yet</p>
-              ) : (
-                <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                  {dashboardData.recentCodingSessions.map((session, index) => (
-                    <li key={session.id || index} className="border border-slate-200 rounded-md px-3 py-2 bg-slate-50">
-                      {session.name || session.title || 'Session'}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div id="classrooms" className="bg-white border border-slate-200 rounded-lg p-6 lg:col-span-2">
-              <h2 className="text-lg font-semibold text-slate-900">Classrooms</h2>
-              {dashboardData.activeClassrooms.length === 0 ? (
-                <p className="text-sm text-slate-600 mt-3">No classrooms yet</p>
-              ) : (
-                <ul className="mt-3 space-y-3 text-sm text-slate-700">
-                  {dashboardData.activeClassrooms.map((classroom, index) => (
-                    <li key={classroom.id || index} className="border border-slate-200 rounded-md p-3 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-slate-900">{classroom.name || 'Classroom'}</p>
-                        <p className="text-xs text-slate-600">Students: {typeof classroom.studentCount === 'number' ? classroom.studentCount : 'Not available'}</p>
-                        <p className="text-xs text-slate-600">Status: {classroom.status || 'Unknown'}</p>
-                      </div>
-                      <button type="button" className="btn-secondary">Open</button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div id="students" className="bg-white border border-slate-200 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-slate-900">Students</h2>
-              {dashboardData.studentStatistics ? (
-                <pre className="mt-3 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 overflow-auto">
-                  {JSON.stringify(dashboardData.studentStatistics, null, 2)}
-                </pre>
-              ) : (
-                <p className="text-sm text-slate-600 mt-3">No student statistics available</p>
-              )}
-            </div>
+          <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <article className="bg-white border border-slate-200 rounded-lg p-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Classrooms</p>
+              <p className="text-2xl font-semibold text-slate-900 mt-2">{classrooms.length}</p>
+            </article>
+            <article className="bg-white border border-slate-200 rounded-lg p-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Total Students</p>
+              <p className="text-2xl font-semibold text-slate-900 mt-2">{totalStudents}</p>
+            </article>
+            <article className="bg-white border border-slate-200 rounded-lg p-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Quick Action</p>
+              <button type="button" className="btn-secondary mt-3" onClick={() => setShowCreateModal(true)}>
+                Create Classroom
+              </button>
+            </article>
           </section>
 
-          <section className="bg-white border border-slate-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-slate-900">Recent Sessions</h2>
-            {dashboardData.recentCodingSessions.length === 0 ? (
-              <p className="text-sm text-slate-600 mt-3">No sessions yet</p>
+          <section id="classrooms" className="bg-white border border-slate-200 rounded-lg p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-900">My Classrooms</h2>
+              <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(true)}>Create Classroom</button>
+            </div>
+
+            {loading ? (
+              <p className="text-sm text-slate-600 mt-4">Loading classrooms...</p>
+            ) : classrooms.length === 0 ? (
+              <div className="mt-4">
+                <p className="text-sm text-slate-600">No classrooms created yet.</p>
+                <button type="button" className="btn-secondary mt-3" onClick={() => setShowCreateModal(true)}>
+                  Create Classroom
+                </button>
+              </div>
             ) : (
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                {dashboardData.recentCodingSessions.map((session, index) => (
-                  <li key={session.id || `recent-${index}`} className="border border-slate-200 rounded-md px-3 py-2 bg-slate-50">
-                    {session.name || session.title || 'Session'}
+              <ul className="mt-4 grid md:grid-cols-2 gap-3">
+                {classrooms.map((classroom) => (
+                  <li key={classroom.id} className="border border-slate-200 rounded-md p-4 bg-slate-50">
+                    <p className="text-sm font-semibold text-slate-900">{classroom.name}</p>
+                    <p className="text-xs text-slate-600 mt-1">Subject: {classroom.subject}</p>
+                    <p className="text-xs text-slate-600">Room: {classroom.roomCode}</p>
+                    <p className="text-xs text-slate-600">Students: {classroom.studentCount}</p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" className="btn-secondary" onClick={() => handleCopyCode(classroom.roomCode)}>
+                        {copiedCode === classroom.roomCode ? 'Copied' : 'Copy Code'}
+                      </button>
+                      <Link to={`/teacher/classroom/${classroom.id}`} className="btn-secondary">Open Classroom</Link>
+                      <Link to={`/classroom/${classroom.id}/workspace`} className="btn-primary">Open Workspace</Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section id="activity" className="bg-white border border-slate-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-slate-600 mt-3">Your recent activity will appear here.</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {recentActivity.map((activity) => (
+                  <li key={activity.id} className="border border-slate-200 rounded-md p-3 bg-slate-50">
+                    <p className="text-sm text-slate-900">{activity.message}</p>
+                    <p className="text-xs text-slate-500 mt-1">{new Date(activity.timestamp).toLocaleString()}</p>
                   </li>
                 ))}
               </ul>
@@ -145,6 +177,13 @@ export default function TeacherDashboardPage() {
           </section>
         </div>
       </main>
+
+      <CreateClassroomModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateClassroom}
+      />
+
       <Footer />
     </div>
   );

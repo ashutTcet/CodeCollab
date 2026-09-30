@@ -1,11 +1,16 @@
 const express = require('express');
+const http = require('http');
+const path = require('path');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const connectDB = require('./config/db');
+const { initializeSocketServer } = require('./socket/socketServer');
+const collaborationService = require('./services/collaborationService');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const httpServer = http.createServer(app);
+const PORT = process.env.PORT || 8080;
 
 connectDB();
 
@@ -30,10 +35,14 @@ app.use('/api/health', healthRouter);
 const authRouter = require('./routes/auth');
 const studentRouter = require('./routes/student');
 const teacherRouter = require('./routes/teacher');
+const classroomRouter = require('./routes/classrooms');
+const codeRouter = require('./routes/code');
 
 app.use('/api/auth', authRouter);
 app.use('/api/student', studentRouter);
 app.use('/api/teacher', teacherRouter);
+app.use('/api/classrooms', classroomRouter);
+app.use('/api/code', codeRouter);
 
 // Future route stubs (not yet implemented)
 // app.use('/api/sessions',  require('./routes/sessions'));
@@ -73,10 +82,34 @@ app.use((err, req, res, next) => {
 
 // ─── Start Server ────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
+initializeSocketServer(httpServer);
+
+httpServer.on('error', (error) => {
+  if (error && error.code === 'EADDRINUSE') {
+    console.error(`\n[StartupError] Port ${PORT} is already in use.`);
+    console.error('Stop the existing process on this port, or set a different PORT in your environment.\n');
+    process.exit(1);
+  }
+
+  console.error('\n[StartupError] Failed to start HTTP server.');
+  console.error(error);
+  process.exit(1);
+});
+
+httpServer.listen(PORT, () => {
   console.log(`\n🚀 CodeCollab API running on http://localhost:${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
+});
+
+process.on('SIGINT', async () => {
+  await collaborationService.flushAll();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await collaborationService.flushAll();
+  process.exit(0);
 });
 
 module.exports = app;

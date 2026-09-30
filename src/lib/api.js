@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const SOCKET_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -50,5 +51,46 @@ export const api = {
 
   getTeacherDashboard() {
     return request('/teacher/dashboard');
+  },
+
+  createClassroom(payload) {
+    return request('/classrooms', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getTeacherClassrooms() {
+    return request('/classrooms/teacher');
+  },
+
+  joinClassroom(payload) {
+    return request('/classrooms/join', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getStudentClassrooms() {
+    return request('/classrooms/student');
+  },
+
+  getClassroomDetails(id) {
+    return request(`/classrooms/${id}`);
+  },
+
+  getClassroomStudents(id) {
+    return request(`/classrooms/${id}/students`);
+  },
+
+  getExecutionLanguages() {
+    return request('/code/languages');
+  },
+
+  executeCode(payload) {
+    return request('/code/execute', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };
