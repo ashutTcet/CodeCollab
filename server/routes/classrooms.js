@@ -9,6 +9,7 @@ const {
   getClassroomDetails,
   getClassroomStudents,
 } = require('../controllers/classroomController');
+const { getClassroomMessages } = require('../controllers/chatController');
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.post('/', authMiddleware, requireRole('teacher'), createClassroom);
 router.get('/teacher', authMiddleware, requireRole('teacher'), getTeacherClassrooms);
 router.post('/join', authMiddleware, requireRole('student'), joinClassroom);
 router.get('/student', authMiddleware, requireRole('student'), getStudentClassrooms);
+router.get('/:classroomId/messages', authMiddleware, getClassroomMessages);
 router.get('/:id/students', authMiddleware, requireRole('teacher'), getClassroomStudents);
 router.get('/:id', authMiddleware, getClassroomDetails);
 
