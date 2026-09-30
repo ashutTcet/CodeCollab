@@ -1,0 +1,13 @@
+/**
+ * controllers/
+ *
+ * Business logic controllers for CodeCollab API routes.
+ * These will be implemented in subsequent phases.
+ *
+ * Planned controllers:
+ *   - authController.js     : JWT registration, login, token refresh
+ *   - sessionController.js  : Create/join/leave classroom sessions
+ *   - executeController.js  : Code execution via Judge0
+ *   - aiController.js       : AI Tutor & Debugger integration
+ *   - progressController.js : Learning progress tracking
+ */

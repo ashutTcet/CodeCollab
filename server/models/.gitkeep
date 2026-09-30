@@ -1,0 +1,12 @@
+/**
+ * models/
+ *
+ * Mongoose data models for CodeCollab.
+ * MongoDB connection and schema definitions will be implemented in Phase 2.
+ *
+ * Planned models:
+ *   - User.js       : Teacher and Student accounts
+ *   - Session.js    : Collaborative coding sessions
+ *   - Snapshot.js   : Code snapshots and version history
+ *   - Progress.js   : Student learning progress records
+ */

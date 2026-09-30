@@ -1,0 +1,12 @@
+/**
+ * middleware/
+ *
+ * Express middleware for CodeCollab API.
+ * Will be implemented in Phase 2 alongside authentication.
+ *
+ * Planned middleware:
+ *   - auth.js      : JWT verification middleware
+ *   - errorHandler.js : Centralized error handling
+ *   - rateLimit.js : Rate limiting for code execution endpoints
+ *   - validate.js  : Request body validation
+ */
