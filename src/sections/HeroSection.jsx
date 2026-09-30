@@ -35,15 +35,12 @@ export default function HeroSection() {
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px)
+            linear-gradient(rgba(37,99,235,0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(37,99,235,0.06) 1px, transparent 1px)
           `,
           backgroundSize: '48px 48px',
         }}
       />
-      {/* Radial glow */}
-      <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -51,23 +48,19 @@ export default function HeroSection() {
           <div className="flex flex-col gap-6 animate-fade-in">
             {/* Top badge */}
             <div className="flex items-center gap-3">
-              <span className="badge bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-xs">
-                🚀 Hackathon Build — HackConquest 2026
+              <span className="badge bg-brand-50 text-brand-700 border border-brand-200 text-xs">
+                Developer Classroom Platform
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-editor-text leading-[1.1] tracking-tight">
-              Collaborative{' '}
-              <span className="text-gradient">Coding,</span>
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-editor-text leading-[1.15] tracking-tight">
+              Collaborative coding
               <br />
-              Built for{' '}
-              <span className="text-gradient">Learning.</span>
+              for remote learning
             </h1>
 
             <p className="text-lg text-editor-muted leading-relaxed max-w-lg">
-              CodeCollab brings real-time collaborative coding, communication, AI-powered
-              debugging, secure code execution, and personalized learning into one workspace
-              built for remote STEM education.
+              Create a session, code together in real time, and continue projects from one shared workspace built for STEM classrooms.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -103,12 +96,12 @@ export default function HeroSection() {
 
           {/* Right: Code preview card */}
           <div className="animate-slide-up">
-            <div className="rounded-xl border border-editor-border bg-editor-bg overflow-hidden shadow-2xl">
+            <div className="rounded-lg border border-editor-border bg-editor-bg overflow-hidden shadow-sm">
               {/* Window chrome */}
               <div className="flex items-center gap-2 px-4 py-3 bg-editor-line border-b border-editor-border">
-                <div className="w-3 h-3 rounded-full bg-rose-500/70" />
-                <div className="w-3 h-3 rounded-full bg-amber-500/70" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/70" />
+                <div className="w-3 h-3 rounded-full bg-slate-300" />
+                <div className="w-3 h-3 rounded-full bg-slate-300" />
+                <div className="w-3 h-3 rounded-full bg-slate-300" />
                 <span className="ml-3 text-xs font-mono text-editor-muted">
                   session.js — CodeCollab Workspace
                 </span>
@@ -120,10 +113,10 @@ export default function HeroSection() {
               </pre>
 
               {/* Status bar */}
-              <div className="flex items-center justify-between px-4 py-2 bg-cyan-500/10 border-t border-cyan-500/20">
+              <div className="flex items-center justify-between px-4 py-2 bg-brand-50 border-t border-brand-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                  <span className="text-xs font-mono text-cyan-400">Collaborative session ready</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-brand-600" />
+                  <span className="text-xs font-mono text-brand-700">Collaborative session ready</span>
                 </div>
                 <span className="text-xs font-mono text-editor-muted">Python · UTF-8</span>
               </div>

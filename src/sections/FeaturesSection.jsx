@@ -7,7 +7,7 @@ function FeatureCard({ feature }) {
 
   return (
     <div
-      className={`group card hover:shadow-lg ${feature.glowColor} flex flex-col gap-4 border ${feature.borderColor} hover:bg-surface-600 transition-all duration-200`}
+      className={`group card ${feature.glowColor} flex flex-col gap-4 border ${feature.borderColor} hover:bg-surface-600 transition-all duration-200`}
     >
       {/* Icon */}
       <div

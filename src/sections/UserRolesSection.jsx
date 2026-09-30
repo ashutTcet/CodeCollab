@@ -1,6 +1,6 @@
 import SectionHeader from '../components/SectionHeader'
 import { userRoles } from '../data/platform'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, GraduationCap, UserRound } from 'lucide-react'
 
 export default function UserRolesSection() {
   return (
@@ -14,13 +14,18 @@ export default function UserRolesSection() {
         />
 
         <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-          {userRoles.map((role) => (
+          {userRoles.map((role) => {
+            const RoleIcon = role.role === 'Teacher' ? GraduationCap : UserRound
+
+            return (
             <div
               key={role.role}
-              className={`rounded-xl border ${role.borderColor} ${role.bgColor} p-8 flex flex-col gap-5`}
+              className={`rounded-lg border ${role.borderColor} ${role.bgColor} p-8 flex flex-col gap-5`}
             >
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{role.icon}</span>
+                <div className="w-10 h-10 rounded-md border border-surface-500 bg-white flex items-center justify-center">
+                  <RoleIcon size={18} className={role.color} />
+                </div>
                 <div>
                   <h3 className={`text-xl font-bold ${role.color}`}>{role.role}</h3>
                   <p className="text-xs text-editor-muted font-mono">Platform Role</p>
@@ -36,11 +41,12 @@ export default function UserRolesSection() {
                 ))}
               </ul>
             </div>
-          ))}
+            )
+          })}
         </div>
 
         <p className="text-center text-xs text-editor-muted mt-8 font-mono">
-          Authentication is part of the planned implementation — not yet active.
+          Role-based access is active for student and teacher dashboards.
         </p>
       </div>
     </section>
