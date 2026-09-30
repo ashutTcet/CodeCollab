@@ -107,4 +107,55 @@
   .glass {
     @apply bg-white border border-surface-500;
   }
+
+  .cc-remote-line {
+    border-bottom: 1px dashed transparent;
+  }
+
+  .cc-remote-caret {
+    border-left: 2px solid transparent;
+    margin-left: -1px;
+  }
+
+  .cc-remote-label {
+    font-size: 10px;
+    font-weight: 600;
+    padding-left: 4px;
+  }
+
+  .cc-remote-line-0 { background: rgba(37, 99, 235, 0.08); border-bottom-color: rgba(37, 99, 235, 0.4); }
+  .cc-remote-line-1 { background: rgba(14, 116, 144, 0.08); border-bottom-color: rgba(14, 116, 144, 0.4); }
+  .cc-remote-line-2 { background: rgba(79, 70, 229, 0.08); border-bottom-color: rgba(79, 70, 229, 0.4); }
+  .cc-remote-line-3 { background: rgba(2, 132, 199, 0.08); border-bottom-color: rgba(2, 132, 199, 0.4); }
+  .cc-remote-line-4 { background: rgba(180, 83, 9, 0.08); border-bottom-color: rgba(180, 83, 9, 0.4); }
+  .cc-remote-line-5 { background: rgba(5, 150, 105, 0.08); border-bottom-color: rgba(5, 150, 105, 0.4); }
+  .cc-remote-line-6 { background: rgba(220, 38, 38, 0.08); border-bottom-color: rgba(220, 38, 38, 0.4); }
+  .cc-remote-line-7 { background: rgba(190, 24, 93, 0.08); border-bottom-color: rgba(190, 24, 93, 0.4); }
+
+  .cc-remote-caret-0 { border-left-color: rgb(37, 99, 235); }
+  .cc-remote-caret-1 { border-left-color: rgb(14, 116, 144); }
+  .cc-remote-caret-2 { border-left-color: rgb(79, 70, 229); }
+  .cc-remote-caret-3 { border-left-color: rgb(2, 132, 199); }
+  .cc-remote-caret-4 { border-left-color: rgb(180, 83, 9); }
+  .cc-remote-caret-5 { border-left-color: rgb(5, 150, 105); }
+  .cc-remote-caret-6 { border-left-color: rgb(220, 38, 38); }
+  .cc-remote-caret-7 { border-left-color: rgb(190, 24, 93); }
+
+  .cc-remote-label-0 { color: rgb(37, 99, 235); }
+  .cc-remote-label-1 { color: rgb(14, 116, 144); }
+  .cc-remote-label-2 { color: rgb(79, 70, 229); }
+  .cc-remote-label-3 { color: rgb(2, 132, 199); }
+  .cc-remote-label-4 { color: rgb(180, 83, 9); }
+  .cc-remote-label-5 { color: rgb(5, 150, 105); }
+  .cc-remote-label-6 { color: rgb(220, 38, 38); }
+  .cc-remote-label-7 { color: rgb(190, 24, 93); }
+
+  .cc-presence-dot-0 { background: rgb(37, 99, 235); }
+  .cc-presence-dot-1 { background: rgb(14, 116, 144); }
+  .cc-presence-dot-2 { background: rgb(79, 70, 229); }
+  .cc-presence-dot-3 { background: rgb(2, 132, 199); }
+  .cc-presence-dot-4 { background: rgb(180, 83, 9); }
+  .cc-presence-dot-5 { background: rgb(5, 150, 105); }
+  .cc-presence-dot-6 { background: rgb(220, 38, 38); }
+  .cc-presence-dot-7 { background: rgb(190, 24, 93); }
 }

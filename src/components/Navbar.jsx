@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Code2, Menu, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -13,16 +13,14 @@ const homeLinks = [
 
 const studentLinks = [
   { label: 'Dashboard', href: '#student-dashboard' },
-  { label: 'Projects', href: '#recent-projects' },
-  { label: 'Sessions', href: '#active-sessions' },
-  { label: 'Progress', href: '#learning-progress' },
+  { label: 'Classrooms', href: '#classrooms' },
+  { label: 'Activity', href: '#activity' },
 ]
 
 const teacherLinks = [
   { label: 'Dashboard', href: '#teacher-dashboard' },
   { label: 'Classrooms', href: '#classrooms' },
-  { label: 'Sessions', href: '#active-sessions' },
-  { label: 'Students', href: '#students' },
+  { label: 'Activity', href: '#activity' },
 ]
 
 export default function Navbar() {
@@ -30,9 +28,10 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const isHomePage = location.pathname === '/'
-  const isStudentDashboard = location.pathname === '/student/dashboard'
-  const isTeacherDashboard = location.pathname === '/teacher/dashboard'
+  const isStudentArea = location.pathname.startsWith('/student')
+  const isTeacherArea = location.pathname.startsWith('/teacher')
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -45,15 +44,27 @@ export default function Navbar() {
     setMobileOpen(false)
 
     const el = document.querySelector(href)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
+    if (isStudentArea) {
+      navigate(`/student/dashboard${href}`)
+      return
+    }
+
+    if (isTeacherArea) {
+      navigate(`/teacher/dashboard${href}`)
+    }
   }
 
   const dashboardPath = user?.role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard'
   const navItems = isHomePage
     ? homeLinks
-    : isStudentDashboard
+    : isStudentArea
       ? studentLinks
-      : isTeacherDashboard
+      : isTeacherArea
         ? teacherLinks
         : []
 
@@ -115,7 +126,7 @@ export default function Navbar() {
                 <span className="text-sm text-editor-muted border border-surface-500 rounded-md px-3 py-2">
                   Profile: {user?.name || 'User'}
                 </span>
-                {!(isStudentDashboard || isTeacherDashboard) && (
+                {!(isStudentArea || isTeacherArea) && (
                   <Link to={dashboardPath} className="btn-secondary">Dashboard</Link>
                 )}
                 <button type="button" onClick={logout} className="btn-primary">Logout</button>
