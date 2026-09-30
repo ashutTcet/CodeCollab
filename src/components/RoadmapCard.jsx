@@ -49,7 +49,7 @@ export default function RoadmapCard({ phase, title, status, items }) {
       </ul>
 
       {isComplete && (
-        <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-cyan-400 animate-pulse-slow" />
+        <div className="absolute top-3 right-3 w-2 h-2 rounded-sm bg-cyan-500" />
       )}
     </div>
   )

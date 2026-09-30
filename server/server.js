@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
+const connectDB = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+connectDB();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
@@ -13,6 +17,7 @@ app.use(
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -22,8 +27,15 @@ app.use(express.urlencoded({ extended: true }));
 const healthRouter = require('./routes/health');
 app.use('/api/health', healthRouter);
 
+const authRouter = require('./routes/auth');
+const studentRouter = require('./routes/student');
+const teacherRouter = require('./routes/teacher');
+
+app.use('/api/auth', authRouter);
+app.use('/api/student', studentRouter);
+app.use('/api/teacher', teacherRouter);
+
 // Future route stubs (not yet implemented)
-// app.use('/api/auth',      require('./routes/auth'));
 // app.use('/api/sessions',  require('./routes/sessions'));
 // app.use('/api/execute',   require('./routes/execute'));
 // app.use('/api/ai',        require('./routes/ai'));
@@ -42,9 +54,20 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
   console.error('[Error]', err.stack);
-  res.status(err.status || 500).json({
+
+  if (err.code === 11000 && err.keyPattern && err.keyPattern.email) {
+    return res.status(409).json({
+      success: false,
+      message: 'Email is already registered',
+    });
+  }
+
+  const statusCode = err.status || 500;
+  const safeMessage = statusCode >= 500 ? 'Internal server error' : err.message;
+
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: safeMessage || 'Internal server error',
   });
 });
 

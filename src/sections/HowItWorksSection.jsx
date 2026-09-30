@@ -13,9 +13,9 @@ const steps = [
     number: '02',
     title: 'Join & Collaborate',
     description: 'Students join the shared workspace via a session link — everyone sees the same editor.',
-    color: 'text-violet-400',
-    border: 'border-violet-500/40',
-    bg: 'bg-violet-500/10',
+    color: 'text-blue-700',
+    border: 'border-blue-200',
+    bg: 'bg-blue-50',
   },
   {
     number: '03',
@@ -107,8 +107,8 @@ export default function HowItWorksSection() {
         </div>
 
         {/* Disclaimer */}
-        <p className="text-center text-xs text-editor-muted mt-10 font-mono border-t border-surface-600 pt-6">
-          ℹ️ This is a conceptual product flow — backend workflows are part of the planned implementation.
+        <p className="text-center text-xs text-editor-muted mt-10 font-mono border-t border-surface-500 pt-6">
+          This is a conceptual product flow. Modules appear as backend integration is completed.
         </p>
       </div>
     </section>

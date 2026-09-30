@@ -89,7 +89,7 @@ export default function ArchitectureSection() {
               {[
                 { label: 'AI Tutor', sublabel: 'LLM API', color: 'border-emerald-500/40 bg-emerald-500/5 text-emerald-400' },
                 { label: 'Code Execution', sublabel: 'Judge0', color: 'border-amber-500/40 bg-amber-500/5 text-amber-400' },
-                { label: 'MongoDB', sublabel: 'Atlas Database', color: 'border-violet-500/40 bg-violet-500/5 text-violet-400' },
+                { label: 'MongoDB', sublabel: 'Atlas Database', color: 'border-blue-200 bg-blue-50 text-blue-700' },
                 { label: 'Learning Data', sublabel: 'Progress Store', color: 'border-sky-500/40 bg-sky-500/5 text-sky-400' },
               ].map((node) => (
                 <div
@@ -128,8 +128,8 @@ export default function ArchitectureSection() {
 
         {/* Disclaimer */}
         <div className="mt-10 text-center">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-700 border border-surface-500 text-xs text-editor-muted font-mono">
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-surface-700 border border-surface-500 text-xs text-editor-muted font-mono">
+            <span className="w-2 h-2 rounded-sm bg-amber-500 inline-block" />
             Planned Production Architecture — Not Yet Implemented
           </span>
         </div>

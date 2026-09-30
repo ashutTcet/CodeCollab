@@ -15,9 +15,9 @@ export const techStack = [
   },
   {
     category: 'Real-Time',
-    color: 'text-violet-400',
-    borderColor: 'border-violet-500/30',
-    bgColor: 'bg-violet-500/10',
+    color: 'text-blue-700',
+    borderColor: 'border-blue-200',
+    bgColor: 'bg-blue-50',
     items: ['Socket.IO', 'Yjs'],
   },
   {
@@ -60,10 +60,9 @@ export const techStack = [
 export const userRoles = [
   {
     role: 'Teacher',
-    color: 'text-cyan-400',
-    borderColor: 'border-cyan-500/40',
-    bgColor: 'bg-cyan-500/5',
-    icon: '🎓',
+    color: 'text-brand-700',
+    borderColor: 'border-brand-200',
+    bgColor: 'bg-brand-50',
     capabilities: [
       'Create and manage coding classrooms',
       'Monitor student activity in real time',
@@ -74,10 +73,9 @@ export const userRoles = [
   },
   {
     role: 'Student',
-    color: 'text-violet-400',
-    borderColor: 'border-violet-500/40',
-    bgColor: 'bg-violet-500/5',
-    icon: '👨‍💻',
+    color: 'text-blue-700',
+    borderColor: 'border-blue-200',
+    bgColor: 'bg-blue-50',
     capabilities: [
       'Join shared coding classrooms',
       'Collaborate on code with peers',
