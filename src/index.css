@@ -158,4 +158,29 @@
   .cc-presence-dot-5 { background: rgb(5, 150, 105); }
   .cc-presence-dot-6 { background: rgb(220, 38, 38); }
   .cc-presence-dot-7 { background: rgb(190, 24, 93); }
+
+  .cc-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.15em;
+    vertical-align: -0.2em;
+    background: #38bdf8;
+    margin-left: 0.15rem;
+    animation: cc-blink 1.2s steps(2, jump-none) infinite;
+  }
+
+  .cc-float {
+    animation: cc-float 6s ease-in-out infinite;
+  }
+
+  @keyframes cc-blink {
+    0%, 48% { opacity: 1; }
+    49%, 100% { opacity: 0; }
+  }
+
+  @keyframes cc-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
 }
+

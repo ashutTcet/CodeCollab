@@ -33,13 +33,18 @@ export default function Footer() {
           {/* Center links */}
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-editor-muted mb-1">Platform</p>
-            {['Overview', 'Features', 'Architecture', 'Roadmap'].map((item) => (
+            {[
+              { label: 'Overview', href: '#overview' },
+              { label: 'Features', href: '#features' },
+              { label: 'How It Works', href: '#how-it-works' },
+              { label: 'Platform', href: '#showcase' },
+            ].map((item) => (
               <a
-                key={item}
-                href={`#${item.toLowerCase().replace(' ', '-')}`}
+                key={item.label}
+                href={item.href}
                 className="text-sm text-editor-muted hover:text-editor-text transition-colors"
               >
-                {item}
+                {item.label}
               </a>
             ))}
           </div>

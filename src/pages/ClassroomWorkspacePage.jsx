@@ -131,6 +131,90 @@ export default function ClassroomWorkspacePage() {
   const [livekitServerUrl, setLivekitServerUrl] = useState('');
   const [livekitParticipantIds, setLivekitParticipantIds] = useState([]);
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('codecollab_sidebar_width');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 280 && val <= 520) return val;
+      }
+    } catch {}
+    return 340;
+  });
+
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(() => {
+    try {
+      const saved = localStorage.getItem('codecollab_bottom_panel_height');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 120 && val <= 600) return val;
+      }
+    } catch {}
+    return 260;
+  });
+
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isResizingBottom, setIsResizingBottom] = useState(false);
+
+  const workspaceRef = useRef(null);
+  const leftSectionRef = useRef(null);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  sidebarWidthRef.current = sidebarWidth;
+  const bottomPanelHeightRef = useRef(bottomPanelHeight);
+  bottomPanelHeightRef.current = bottomPanelHeight;
+
+  useEffect(() => {
+    if (!isResizingSidebar && !isResizingBottom) return;
+
+    const handlePointerMove = (e) => {
+      if (isResizingSidebar && workspaceRef.current) {
+        const rect = workspaceRef.current.getBoundingClientRect();
+        const newWidth = rect.right - e.clientX;
+        const minW = 280;
+        const maxW = Math.max(minW, Math.min(520, rect.width - 340));
+        const clamped = Math.min(Math.max(newWidth, minW), maxW);
+        setSidebarWidth(clamped);
+      }
+
+      if (isResizingBottom && leftSectionRef.current) {
+        const rect = leftSectionRef.current.getBoundingClientRect();
+        const newHeight = rect.bottom - e.clientY;
+        const minH = 120;
+        const maxH = Math.max(minH, Math.min(rect.height * 0.65, rect.height - 140));
+        const clamped = Math.min(Math.max(newHeight, minH), maxH);
+        setBottomPanelHeight(clamped);
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (isResizingSidebar) {
+        setIsResizingSidebar(false);
+        try {
+          localStorage.setItem('codecollab_sidebar_width', String(sidebarWidthRef.current));
+        } catch {}
+      }
+      if (isResizingBottom) {
+        setIsResizingBottom(false);
+        try {
+          localStorage.setItem('codecollab_bottom_panel_height', String(bottomPanelHeightRef.current));
+        } catch {}
+      }
+    };
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = isResizingSidebar ? 'col-resize' : 'row-resize';
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isResizingSidebar, isResizingBottom]);
+
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const socketRef = useRef(null);
@@ -1216,9 +1300,15 @@ export default function ClassroomWorkspacePage() {
       </header>
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4 h-[calc(100vh-138px)] min-h-[620px]">
-          <section className="bg-white border border-slate-200 rounded-lg flex flex-col min-h-0">
-            <div className="border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div
+          ref={workspaceRef}
+          className="flex flex-col lg:flex-row gap-4 lg:gap-0 h-[calc(100vh-138px)] min-h-[620px]"
+        >
+          <section
+            ref={leftSectionRef}
+            className="bg-white border border-slate-200 rounded-lg flex flex-col min-h-0 flex-1 overflow-hidden"
+          >
+            <div className="border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <label htmlFor="workspace-language" className="text-sm text-slate-700 font-medium">Language</label>
                 <select
@@ -1241,8 +1331,8 @@ export default function ClassroomWorkspacePage() {
               <p className="text-xs text-slate-600">Shared document across all classroom participants</p>
             </div>
 
-            <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)_260px]">
-              <div className="min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 relative">
                 <Editor
                   height="100%"
                   defaultLanguage="javascript"
@@ -1261,7 +1351,32 @@ export default function ClassroomWorkspacePage() {
                 />
               </div>
 
-              <div className="border-t border-slate-200 bg-slate-950 text-slate-100 flex flex-col min-h-0">
+              {/* Horizontal Resize Handle between Editor & Terminal */}
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  setIsResizingBottom(true);
+                }}
+                className={`w-full h-2.5 -my-1 z-20 cursor-row-resize flex items-center justify-center select-none transition-colors group shrink-0 bg-slate-900 border-t border-slate-800 ${
+                  isResizingBottom ? 'bg-indigo-950/80 border-indigo-500/50' : 'hover:bg-slate-800 hover:border-slate-700 active:bg-indigo-950/80'
+                }`}
+                title="Drag to resize bottom panel"
+              >
+                <div
+                  className={`h-1 w-10 rounded-full transition-all ${
+                    isResizingBottom
+                      ? 'bg-indigo-400 w-16'
+                      : 'bg-slate-700 group-hover:bg-slate-500 group-hover:w-14'
+                  }`}
+                />
+              </div>
+
+              <div
+                style={{ height: `${bottomPanelHeight}px` }}
+                className="bg-slate-950 text-slate-100 flex flex-col min-h-0 shrink-0"
+              >
                 <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5 text-xs flex-wrap">
                     <button
@@ -1927,39 +2042,66 @@ export default function ClassroomWorkspacePage() {
             </div>
           </section>
 
-          <CommunicationPanel
-            activeTab={communicationTab}
-            onTabChange={setCommunicationTab}
-            chatProps={{
-              messages: classroomMessages,
-              loading: classroomChatLoading,
-              loadError: classroomChatLoadError,
-              error: classroomChatError || socketError,
-              currentUserId,
-              messageInput: classroomChatInput,
-              onMessageInputChange: handleClassroomChatInputChange,
-              onSendMessage: handleClassroomMessageSend,
-              sending: classroomChatSending,
-              typingUsers,
-              connected: isConnected,
+          {/* Vertical Resize Handle between Editor Area & Right Sidebar */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              setIsResizingSidebar(true);
             }}
-            callProps={{
-              isInCall,
-              isJoining: isJoiningCall,
-              callMode,
-              onCallModeChange: setCallMode,
-              onJoinCall: handleJoinCall,
-              onLeaveCall: handleLeaveCall,
-              token: livekitToken,
-              serverUrl: livekitServerUrl,
-              onParticipantIdsChange: setLivekitParticipantIds,
-              callError,
-            }}
-            participantProps={{
-              participants: communicationParticipants,
-              currentUserId,
-            }}
-          />
+            className={`hidden lg:flex w-2.5 -mx-1 z-20 cursor-col-resize items-center justify-center select-none transition-colors group shrink-0 ${
+              isResizingSidebar ? 'bg-indigo-500/20' : 'hover:bg-slate-200 active:bg-indigo-500/20'
+            }`}
+            title="Drag to resize sidebar"
+          >
+            <div
+              className={`w-1 h-8 rounded-full transition-all ${
+                isResizingSidebar
+                  ? 'bg-indigo-500 h-14'
+                  : 'bg-slate-300 group-hover:bg-slate-400 group-hover:h-12'
+              }`}
+            />
+          </div>
+
+          <div
+            style={{ width: `${sidebarWidth}px` }}
+            className="w-full lg:w-auto shrink-0 flex flex-col min-h-0"
+          >
+            <CommunicationPanel
+              activeTab={communicationTab}
+              onTabChange={setCommunicationTab}
+              chatProps={{
+                messages: classroomMessages,
+                loading: classroomChatLoading,
+                loadError: classroomChatLoadError,
+                error: classroomChatError || socketError,
+                currentUserId,
+                messageInput: classroomChatInput,
+                onMessageInputChange: handleClassroomChatInputChange,
+                onSendMessage: handleClassroomMessageSend,
+                sending: classroomChatSending,
+                typingUsers,
+                connected: isConnected,
+              }}
+              callProps={{
+                isInCall,
+                isJoining: isJoiningCall,
+                callMode,
+                onCallModeChange: setCallMode,
+                onJoinCall: handleJoinCall,
+                onLeaveCall: handleLeaveCall,
+                token: livekitToken,
+                serverUrl: livekitServerUrl,
+                onParticipantIdsChange: setLivekitParticipantIds,
+                callError,
+              }}
+              participantProps={{
+                participants: communicationParticipants,
+                currentUserId,
+              }}
+            />
+          </div>
         </div>
       </main>
     </div>

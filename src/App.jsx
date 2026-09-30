@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -15,9 +15,12 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+
+          {/* Student Protected Routes */}
           <Route
             path="/student/dashboard"
             element={
@@ -42,6 +45,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Teacher Protected Routes */}
           <Route
             path="/teacher/dashboard"
             element={
@@ -66,6 +71,16 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Classroom / Workspace Protected Routes */}
+          <Route
+            path="/classroom/:id"
+            element={
+              <ProtectedRoute>
+                <ClassroomWorkspacePage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/classroom/:id/workspace"
             element={
@@ -74,6 +89,9 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

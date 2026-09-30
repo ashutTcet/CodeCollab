@@ -14,9 +14,10 @@ export default function CommunicationPanel({
   chatProps,
   callProps,
   participantProps,
+  className = '',
 }) {
   return (
-    <aside className="bg-white border border-slate-200 rounded-lg flex flex-col min-h-0">
+    <aside className={`bg-white border border-slate-200 rounded-lg flex flex-col min-h-0 h-full ${className}`}>
       <div className="border-b border-slate-200 px-3 py-2 flex items-center gap-1">
         {TABS.map((tab) => (
           <button

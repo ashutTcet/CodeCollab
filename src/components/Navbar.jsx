@@ -7,8 +7,7 @@ const homeLinks = [
   { label: 'Overview', href: '#overview' },
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Architecture', href: '#architecture' },
-  { label: 'Roadmap', href: '#roadmap' },
+  { label: 'Platform', href: '#showcase' },
 ]
 
 const studentLinks = [
