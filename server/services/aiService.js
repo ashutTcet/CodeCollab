@@ -87,64 +87,101 @@ function parseAndValidateDebugResponse(rawText) {
   };
 }
 
-async function callProvider({ systemInstruction, userContent, parser }) {
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  const openAiKey = process.env.OPENAI_API_KEY;
+// ─── Provider Callers (Structured JSON) ─────────────────────────────────────
 
-  if (!geminiKey && !openAiKey) {
-    const notConfiguredError = new Error(
-      'AI service is not configured. Please set GEMINI_API_KEY or OPENAI_API_KEY in the server environment variables.'
-    );
-    notConfiguredError.status = 503;
-    throw notConfiguredError;
+async function callGroq({ apiKey, systemInstruction, userContent, parser }) {
+  const targetModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+
+  const payload = {
+    model: targetModel,
+    messages: [
+      { role: 'system', content: `${systemInstruction}\n\nIMPORTANT: You must respond in valid JSON matching the requested schema.` },
+      { role: 'user', content: userContent },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.2,
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error?.message || `Groq API returned status ${response.status}`;
+    let statusCode = 502;
+    if (response.status === 401) statusCode = 401;
+    if (response.status === 429) statusCode = 429;
+    const error = new Error(`AI Service error: ${errorMessage}`);
+    error.status = statusCode;
+    throw error;
   }
 
-  if (geminiKey) {
-    const targetModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(targetModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
 
-    const payload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: `${systemInstruction}\n\n${userContent}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: 'application/json',
+  if (!text) {
+    throw new Error('AI Service returned an empty response.');
+  }
+
+  return parser(text);
+}
+
+async function callGemini({ apiKey, systemInstruction, userContent, parser }) {
+  const targetModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(targetModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: `${systemInstruction}\n\n${userContent}`,
+          },
+        ],
       },
-    };
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+    },
+  };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error?.message || `Gemini API returned status ${response.status}`;
-      const error = new Error(`AI Service error: ${errorMessage}`);
-      error.status = 502;
-      throw error;
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      throw new Error('AI Service returned an empty response.');
-    }
-
-    return parser(text);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error?.message || `Gemini API returned status ${response.status}`;
+    let statusCode = 502;
+    if (response.status === 401 || response.status === 403) statusCode = 401;
+    if (response.status === 429) statusCode = 429;
+    const error = new Error(`AI Service error: ${errorMessage}`);
+    error.status = statusCode;
+    throw error;
   }
 
-  // OpenAI fallback
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error('AI Service returned an empty response.');
+  }
+
+  return parser(text);
+}
+
+async function callOpenAI({ apiKey, systemInstruction, userContent, parser }) {
   const targetModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
   const url = 'https://api.openai.com/v1/chat/completions';
 
@@ -162,7 +199,7 @@ async function callProvider({ systemInstruction, userContent, parser }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${openAiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -170,8 +207,11 @@ async function callProvider({ systemInstruction, userContent, parser }) {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const errorMessage = errorData.error?.message || `OpenAI API returned status ${response.status}`;
+    let statusCode = 502;
+    if (response.status === 401) statusCode = 401;
+    if (response.status === 429) statusCode = 429;
     const error = new Error(`AI Service error: ${errorMessage}`);
-    error.status = 502;
+    error.status = statusCode;
     throw error;
   }
 
@@ -185,94 +225,42 @@ async function callProvider({ systemInstruction, userContent, parser }) {
   return parser(text);
 }
 
-async function callProviderText({ systemInstruction, conversation = [], userContent }) {
+async function callProvider({ systemInstruction, userContent, parser }) {
+  const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
 
-  if (!geminiKey && !openAiKey) {
-    const notConfiguredError = new Error(
-      'AI service is not configured. Please set GEMINI_API_KEY or OPENAI_API_KEY in the server environment variables.'
-    );
-    notConfiguredError.status = 503;
-    throw notConfiguredError;
+  if (groqKey) {
+    return await callGroq({ apiKey: groqKey, systemInstruction, userContent, parser });
   }
 
-  // Limit conversation history to last 10 turns
+  if (geminiKey) {
+    return await callGemini({ apiKey: geminiKey, systemInstruction, userContent, parser });
+  }
+
+  if (openAiKey) {
+    return await callOpenAI({ apiKey: openAiKey, systemInstruction, userContent, parser });
+  }
+
+  const notConfiguredError = new Error(
+    'AI service is not configured. Please set GROQ_API_KEY (or GEMINI_API_KEY / OPENAI_API_KEY) in the server environment variables.'
+  );
+  notConfiguredError.status = 503;
+  throw notConfiguredError;
+}
+
+// ─── Provider Callers (Text / Chat) ─────────────────────────────────────────
+
+async function callGroqText({ apiKey, systemInstruction, conversation = [], userContent }) {
+  const targetModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+
   const recentHistory = Array.isArray(conversation)
     ? conversation.slice(-10).map((msg) => ({
         role: msg.role === 'assistant' ? 'assistant' : 'user',
         content: String(msg.content || '').slice(0, 3000),
       }))
     : [];
-
-  if (geminiKey) {
-    const targetModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(targetModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`;
-
-    const contents = [];
-
-    if (recentHistory.length === 0) {
-      contents.push({
-        role: 'user',
-        parts: [{ text: `${systemInstruction}\n\n${userContent}` }],
-      });
-    } else {
-      contents.push({
-        role: 'user',
-        parts: [{ text: `System Context & Guidelines:\n${systemInstruction}` }],
-      });
-      contents.push({
-        role: 'model',
-        parts: [{ text: 'Understood. I will act as a patient, beginner-friendly coding tutor.' }],
-      });
-
-      for (const turn of recentHistory) {
-        contents.push({
-          role: turn.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: turn.content }],
-        });
-      }
-
-      contents.push({
-        role: 'user',
-        parts: [{ text: userContent }],
-      });
-    }
-
-    const payload = {
-      contents,
-      generationConfig: {
-        temperature: 0.4,
-      },
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error?.message || `Gemini API returned status ${response.status}`;
-      const error = new Error(`AI Service error: ${errorMessage}`);
-      error.status = 502;
-      throw error;
-    }
-
-    const data = await response.json();
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!replyText) {
-      throw new Error('AI Service returned an empty response.');
-    }
-
-    return replyText.trim();
-  }
-
-  // OpenAI fallback
-  const targetModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  const url = 'https://api.openai.com/v1/chat/completions';
 
   const messages = [
     { role: 'system', content: systemInstruction },
@@ -293,16 +281,19 @@ async function callProviderText({ systemInstruction, conversation = [], userCont
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${openAiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    const errorMessage = errorData.error?.message || `OpenAI API returned status ${response.status}`;
+    const errorMessage = errorData.error?.message || `Groq API returned status ${response.status}`;
+    let statusCode = 502;
+    if (response.status === 401) statusCode = 401;
+    if (response.status === 429) statusCode = 429;
     const error = new Error(`AI Service error: ${errorMessage}`);
-    error.status = 502;
+    error.status = statusCode;
     throw error;
   }
 
@@ -314,6 +305,161 @@ async function callProviderText({ systemInstruction, conversation = [], userCont
   }
 
   return replyText.trim();
+}
+
+async function callGeminiText({ apiKey, systemInstruction, conversation = [], userContent }) {
+  const targetModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(targetModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const recentHistory = Array.isArray(conversation)
+    ? conversation.slice(-10).map((msg) => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: String(msg.content || '').slice(0, 3000),
+      }))
+    : [];
+
+  const contents = [];
+
+  if (recentHistory.length === 0) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: `${systemInstruction}\n\n${userContent}` }],
+    });
+  } else {
+    contents.push({
+      role: 'user',
+      parts: [{ text: `System Context & Guidelines:\n${systemInstruction}` }],
+    });
+    contents.push({
+      role: 'model',
+      parts: [{ text: 'Understood. I will act as a patient, beginner-friendly coding tutor.' }],
+    });
+
+    for (const turn of recentHistory) {
+      contents.push({
+        role: turn.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: turn.content }],
+      });
+    }
+
+    contents.push({
+      role: 'user',
+      parts: [{ text: userContent }],
+    });
+  }
+
+  const payload = {
+    contents,
+    generationConfig: {
+      temperature: 0.4,
+    },
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error?.message || `Gemini API returned status ${response.status}`;
+    let statusCode = 502;
+    if (response.status === 401 || response.status === 403) statusCode = 401;
+    if (response.status === 429) statusCode = 429;
+    const error = new Error(`AI Service error: ${errorMessage}`);
+    error.status = statusCode;
+    throw error;
+  }
+
+  const data = await response.json();
+  const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!replyText) {
+    throw new Error('AI Service returned an empty response.');
+  }
+
+  return replyText.trim();
+}
+
+async function callOpenAIText({ apiKey, systemInstruction, conversation = [], userContent }) {
+  const targetModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const url = 'https://api.openai.com/v1/chat/completions';
+
+  const recentHistory = Array.isArray(conversation)
+    ? conversation.slice(-10).map((msg) => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: String(msg.content || '').slice(0, 3000),
+      }))
+    : [];
+
+  const messages = [
+    { role: 'system', content: systemInstruction },
+    ...recentHistory.map((turn) => ({
+      role: turn.role,
+      content: turn.content,
+    })),
+    { role: 'user', content: userContent },
+  ];
+
+  const payload = {
+    model: targetModel,
+    messages,
+    temperature: 0.4,
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error?.message || `OpenAI API returned status ${response.status}`;
+    let statusCode = 502;
+    if (response.status === 401) statusCode = 401;
+    if (response.status === 429) statusCode = 429;
+    const error = new Error(`AI Service error: ${errorMessage}`);
+    error.status = statusCode;
+    throw error;
+  }
+
+  const data = await response.json();
+  const replyText = data.choices?.[0]?.message?.content;
+
+  if (!replyText) {
+    throw new Error('AI Service returned an empty response.');
+  }
+
+  return replyText.trim();
+}
+
+async function callProviderText({ systemInstruction, conversation = [], userContent }) {
+  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const openAiKey = process.env.OPENAI_API_KEY;
+
+  if (groqKey) {
+    return await callGroqText({ apiKey: groqKey, systemInstruction, conversation, userContent });
+  }
+
+  if (geminiKey) {
+    return await callGeminiText({ apiKey: geminiKey, systemInstruction, conversation, userContent });
+  }
+
+  if (openAiKey) {
+    return await callOpenAIText({ apiKey: openAiKey, systemInstruction, conversation, userContent });
+  }
+
+  const notConfiguredError = new Error(
+    'AI service is not configured. Please set GROQ_API_KEY (or GEMINI_API_KEY / OPENAI_API_KEY) in the server environment variables.'
+  );
+  notConfiguredError.status = 503;
+  throw notConfiguredError;
 }
 
 // ─── 1. Explain Code Error ──────────────────────────────────────────────────

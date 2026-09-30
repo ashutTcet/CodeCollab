@@ -12,26 +12,27 @@ function validateExplainPayload(payload) {
   const classroomId = payload.classroomId ? String(payload.classroomId).trim() : null;
 
   if (!code.trim()) {
-    return { error: 'Source code is required to explain the error.' };
+    return { validationError: 'Source code is required to explain the error.' };
   }
 
   if (code.length > aiService.MAX_CODE_LENGTH) {
-    return { error: 'Source code is too large for AI explanation.' };
+    return { validationError: 'Source code is too large for AI explanation.' };
   }
 
   if (!language) {
-    return { error: 'Programming language is required.' };
+    return { validationError: 'Programming language is required.' };
   }
 
   if (!error.trim()) {
-    return { error: 'Error output is required to generate an explanation.' };
+    return { validationError: 'Error output is required to generate an explanation.' };
   }
 
   if (error.length > aiService.MAX_ERROR_LENGTH) {
-    return { error: 'Error output is too large.' };
+    return { validationError: 'Error output is too large.' };
   }
 
   return {
+    validationError: null,
     code,
     language,
     error,
@@ -45,10 +46,10 @@ async function explainError(req, res, next) {
   try {
     const payload = validateExplainPayload(req.body || {});
 
-    if (payload.error) {
+    if (payload.validationError) {
       return res.status(400).json({
         success: false,
-        message: payload.error,
+        message: payload.validationError,
       });
     }
 
@@ -98,26 +99,27 @@ function validateHintPayload(payload) {
   const classroomId = payload.classroomId ? String(payload.classroomId).trim() : null;
 
   if (!code.trim()) {
-    return { error: 'Source code is required to generate a hint.' };
+    return { validationError: 'Source code is required to generate a hint.' };
   }
 
   if (code.length > aiService.MAX_CODE_LENGTH) {
-    return { error: 'Source code is too large for AI processing.' };
+    return { validationError: 'Source code is too large for AI processing.' };
   }
 
   if (!language) {
-    return { error: 'Programming language is required.' };
+    return { validationError: 'Programming language is required.' };
   }
 
   if (error.length > aiService.MAX_ERROR_LENGTH) {
-    return { error: 'Error output is too large.' };
+    return { validationError: 'Error output is too large.' };
   }
 
   if (userQuestion.length > aiService.MAX_QUESTION_LENGTH) {
-    return { error: 'Question text is too large.' };
+    return { validationError: 'Question text is too large.' };
   }
 
   return {
+    validationError: null,
     code,
     language,
     error,
@@ -131,10 +133,10 @@ async function getHint(req, res, next) {
   try {
     const payload = validateHintPayload(req.body || {});
 
-    if (payload.error) {
+    if (payload.validationError) {
       return res.status(400).json({
         success: false,
-        message: payload.error,
+        message: payload.validationError,
       });
     }
 
@@ -184,26 +186,27 @@ function validateDebugPayload(payload) {
   const classroomId = payload.classroomId ? String(payload.classroomId).trim() : null;
 
   if (!code.trim()) {
-    return { error: 'Source code is required to debug.' };
+    return { validationError: 'Source code is required to debug.' };
   }
 
   if (code.length > aiService.MAX_CODE_LENGTH) {
-    return { error: 'Source code is too large for AI debugging.' };
+    return { validationError: 'Source code is too large for AI debugging.' };
   }
 
   if (!language) {
-    return { error: 'Programming language is required.' };
+    return { validationError: 'Programming language is required.' };
   }
 
   if (error.length > aiService.MAX_ERROR_LENGTH) {
-    return { error: 'Error output is too large.' };
+    return { validationError: 'Error output is too large.' };
   }
 
   if (output.length > aiService.MAX_OUTPUT_LENGTH) {
-    return { error: 'Program output is too large.' };
+    return { validationError: 'Program output is too large.' };
   }
 
   return {
+    validationError: null,
     code,
     language,
     error,
@@ -217,10 +220,10 @@ async function debugCode(req, res, next) {
   try {
     const payload = validateDebugPayload(req.body || {});
 
-    if (payload.error) {
+    if (payload.validationError) {
       return res.status(400).json({
         success: false,
-        message: payload.error,
+        message: payload.validationError,
       });
     }
 
@@ -272,34 +275,35 @@ function validateChatPayload(payload) {
   const classroomId = payload.classroomId ? String(payload.classroomId).trim() : null;
 
   if (!message) {
-    return { error: 'Chat message cannot be empty.' };
+    return { validationError: 'Chat message cannot be empty.' };
   }
 
   if (message.length > aiService.MAX_MESSAGE_LENGTH) {
-    return { error: 'Chat message is too long.' };
+    return { validationError: 'Chat message is too long.' };
   }
 
   if (!code.trim()) {
-    return { error: 'Active source code is required for context.' };
+    return { validationError: 'Active source code is required for context.' };
   }
 
   if (code.length > aiService.MAX_CODE_LENGTH) {
-    return { error: 'Source code is too large for AI context.' };
+    return { validationError: 'Source code is too large for AI context.' };
   }
 
   if (!language) {
-    return { error: 'Programming language is required.' };
+    return { validationError: 'Programming language is required.' };
   }
 
   if (error.length > aiService.MAX_ERROR_LENGTH) {
-    return { error: 'Error log is too large.' };
+    return { validationError: 'Error log is too large.' };
   }
 
   if (output.length > aiService.MAX_OUTPUT_LENGTH) {
-    return { error: 'Program output is too large.' };
+    return { validationError: 'Program output is too large.' };
   }
 
   return {
+    validationError: null,
     message,
     code,
     language,
@@ -315,10 +319,10 @@ async function chat(req, res, next) {
   try {
     const payload = validateChatPayload(req.body || {});
 
-    if (payload.error) {
+    if (payload.validationError) {
       return res.status(400).json({
         success: false,
-        message: payload.error,
+        message: payload.validationError,
       });
     }
 
