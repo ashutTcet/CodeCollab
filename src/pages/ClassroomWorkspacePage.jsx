@@ -3,8 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { io } from 'socket.io-client';
 import * as Y from 'yjs';
+import '@livekit/components-styles';
 import { api, SOCKET_BASE_URL } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import CommunicationPanel from '../components/communication/CommunicationPanel';
+
+const MAX_CLASSROOM_CHAT_LENGTH = 2000;
 
 const FALLBACK_LANGUAGES = [
   { key: 'javascript', label: 'JavaScript', monacoLanguage: 'javascript' },
@@ -110,6 +114,22 @@ export default function ClassroomWorkspacePage() {
   const [chatInput, setChatInput] = useState('');
   const [isChatSending, setIsChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
+  const [communicationTab, setCommunicationTab] = useState('chat');
+  const [classroomMessages, setClassroomMessages] = useState([]);
+  const [classroomChatInput, setClassroomChatInput] = useState('');
+  const [classroomChatSending, setClassroomChatSending] = useState(false);
+  const [classroomChatError, setClassroomChatError] = useState('');
+  const [classroomChatLoading, setClassroomChatLoading] = useState(true);
+  const [classroomChatLoadError, setClassroomChatLoadError] = useState('');
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [chatPresence, setChatPresence] = useState([]);
+  const [isInCall, setIsInCall] = useState(false);
+  const [isJoiningCall, setIsJoiningCall] = useState(false);
+  const [callMode, setCallMode] = useState('audio');
+  const [callError, setCallError] = useState('');
+  const [livekitToken, setLivekitToken] = useState('');
+  const [livekitServerUrl, setLivekitServerUrl] = useState('');
+  const [livekitParticipantIds, setLivekitParticipantIds] = useState([]);
 
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
@@ -127,6 +147,7 @@ export default function ClassroomWorkspacePage() {
   const pendingSyncUpdateRef = useRef(null);
   const pendingSyncLanguageRef = useRef('javascript');
   const chatEndRef = useRef(null);
+  const typingStopTimerRef = useRef(null);
 
   const currentUserId = user?.id || null;
 
@@ -447,6 +468,8 @@ export default function ClassroomWorkspacePage() {
       setConnectionStatus('disconnected');
       joinedRef.current = false;
       setParticipants((prev) => prev.filter((participant) => participant.userId !== currentUserId));
+      setTypingUsers([]);
+      setClassroomChatError('Socket disconnected. Reconnecting...');
     });
 
     socket.on('connect_error', () => {
@@ -519,6 +542,53 @@ export default function ClassroomWorkspacePage() {
       const safeParticipants = Array.isArray(payload.participants) ? payload.participants : [];
       setParticipants(safeParticipants);
       applyRemoteCursorDecorations(safeParticipants);
+    });
+
+    socket.on('chat:message', (payload = {}) => {
+      if (payload.classroomId !== classroomId) {
+        return;
+      }
+
+      setClassroomMessages((prev) => {
+        if (prev.some((msg) => msg.id === payload.id)) {
+          return prev;
+        }
+
+        return [...prev, payload];
+      });
+      setClassroomChatError('');
+      setTypingUsers((prev) => prev.filter((name) => name !== payload.sender?.name));
+    });
+
+    socket.on('chat:error', (payload = {}) => {
+      if (!payload.classroomId || payload.classroomId === classroomId) {
+        setClassroomChatError(payload.message || 'Unable to send chat message.');
+      }
+      setClassroomChatSending(false);
+    });
+
+    socket.on('chat:typing', (payload = {}) => {
+      if (payload.classroomId !== classroomId || !payload.user?.name || payload.user?.id === currentUserId) {
+        return;
+      }
+
+      setTypingUsers((prev) => {
+        const withoutUser = prev.filter((name) => name !== payload.user.name);
+        if (!payload.isTyping) {
+          return withoutUser;
+        }
+
+        return [...withoutUser, payload.user.name];
+      });
+    });
+
+    socket.on('chat:presence', (payload = {}) => {
+      if (payload.classroomId !== classroomId) {
+        return;
+      }
+
+      const safeParticipants = Array.isArray(payload.participants) ? payload.participants : [];
+      setChatPresence(safeParticipants);
     });
   }, [applyRemoteCursorDecorations, bindYjsToEditor, classroomId, currentUserId]);
 
@@ -731,11 +801,161 @@ export default function ClassroomWorkspacePage() {
     setChatError('');
   }, []);
 
+  const stopTypingSignal = useCallback(() => {
+    if (!socketRef.current || !joinedRef.current) {
+      return;
+    }
+
+    socketRef.current.emit('chat:typing', {
+      classroomId,
+      isTyping: false,
+    });
+  }, [classroomId]);
+
+  const handleClassroomChatInputChange = useCallback(
+    (value) => {
+      setClassroomChatInput(value);
+
+      if (!socketRef.current || !joinedRef.current || !isConnected) {
+        return;
+      }
+
+      const hasText = value.trim().length > 0;
+      socketRef.current.emit('chat:typing', {
+        classroomId,
+        isTyping: hasText,
+      });
+
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current);
+      }
+
+      if (hasText) {
+        typingStopTimerRef.current = setTimeout(() => {
+          stopTypingSignal();
+        }, 1200);
+      }
+    },
+    [classroomId, isConnected, stopTypingSignal]
+  );
+
+  const handleClassroomMessageSend = useCallback(() => {
+    const text = String(classroomChatInput || '').trim();
+    if (!text || !socketRef.current || !isConnected || !joinedRef.current || classroomChatSending) {
+      return;
+    }
+
+    if (text.length > MAX_CLASSROOM_CHAT_LENGTH) {
+      setClassroomChatError(`Message exceeds ${MAX_CLASSROOM_CHAT_LENGTH} characters.`);
+      return;
+    }
+
+    setClassroomChatSending(true);
+    setClassroomChatError('');
+
+    socketRef.current.emit('chat:send', {
+      classroomId,
+      message: text,
+    });
+
+    socketRef.current.emit('chat:typing', {
+      classroomId,
+      isTyping: false,
+    });
+
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+
+    setClassroomChatInput('');
+    setTimeout(() => {
+      setClassroomChatSending(false);
+    }, 120);
+  }, [classroomChatInput, classroomChatSending, classroomId, isConnected]);
+
+  const handleJoinCall = useCallback(async () => {
+    if (isJoiningCall || isInCall) {
+      return;
+    }
+
+    setIsJoiningCall(true);
+    setCallError('');
+
+    try {
+      const response = await api.getLivekitToken({ classroomId });
+
+      setLivekitToken(response.token || '');
+      setLivekitServerUrl(response.serverUrl || '');
+      setIsInCall(true);
+    } catch (error) {
+      setCallError(error.message || 'Failed to join classroom call.');
+    } finally {
+      setIsJoiningCall(false);
+    }
+  }, [classroomId, isInCall, isJoiningCall]);
+
+  const handleLeaveCall = useCallback(() => {
+    setIsInCall(false);
+    setLivekitToken('');
+    setLivekitServerUrl('');
+    setLivekitParticipantIds([]);
+    setCallError('');
+  }, []);
+
+  const communicationParticipants = useMemo(() => {
+    const onlineMap = new Map();
+    const baseList = chatPresence.length > 0
+      ? chatPresence
+      : participants.map((participant) => ({
+          userId: participant.userId,
+          name: participant.name,
+          role: participant.role,
+          status: 'online',
+          connectedSockets: participant.connectedSockets || 1,
+        }));
+
+    baseList.forEach((participant) => {
+      onlineMap.set(participant.userId, {
+        userId: participant.userId,
+        name: participant.name,
+        role: participant.role,
+        status: 'online',
+        connectedSockets: participant.connectedSockets || 1,
+      });
+    });
+
+    const inCallUserIds = new Set(
+      livekitParticipantIds
+        .map((identity) => String(identity || ''))
+        .filter((identity) => identity.startsWith('u_'))
+        .map((identity) => identity.slice(2))
+    );
+
+    inCallUserIds.forEach((userId) => {
+      const existing = onlineMap.get(userId);
+      if (existing) {
+        existing.status = 'in-call';
+        onlineMap.set(userId, existing);
+      }
+    });
+
+    return Array.from(onlineMap.values());
+  }, [chatPresence, participants, livekitParticipantIds]);
+
   useEffect(() => {
     if (aiMode === 'chat' && activeTerminalTab === 'ai-tutor') {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatMessages, isChatSending, aiMode, activeTerminalTab]);
+
+  useEffect(() => {
+    return () => {
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current);
+      }
+    };
+  }, []);
 
   const runCode = useCallback(async () => {
     if (isExecuting) {
@@ -819,6 +1039,53 @@ export default function ClassroomWorkspacePage() {
   }, [classroomId]);
 
   useEffect(() => {
+    setCommunicationTab('chat');
+    setClassroomMessages([]);
+    setClassroomChatInput('');
+    setClassroomChatError('');
+    setTypingUsers([]);
+    setChatPresence([]);
+    setLivekitParticipantIds([]);
+    setCallError('');
+    setIsInCall(false);
+    setLivekitToken('');
+    setLivekitServerUrl('');
+  }, [classroomId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadClassroomMessages() {
+      setClassroomChatLoading(true);
+      setClassroomChatLoadError('');
+
+      try {
+        const response = await api.getClassroomMessages(classroomId, { limit: 100 });
+        if (!isActive) {
+          return;
+        }
+
+        const messages = Array.isArray(response.messages) ? response.messages : [];
+        setClassroomMessages(messages);
+      } catch (error) {
+        if (isActive) {
+          setClassroomChatLoadError(error.message || 'Failed to load chat history.');
+        }
+      } finally {
+        if (isActive) {
+          setClassroomChatLoading(false);
+        }
+      }
+    }
+
+    loadClassroomMessages();
+
+    return () => {
+      isActive = false;
+    };
+  }, [classroomId]);
+
+  useEffect(() => {
     let isActive = true;
 
     async function loadExecutionLanguages() {
@@ -854,13 +1121,18 @@ export default function ClassroomWorkspacePage() {
 
     return () => {
       if (socketRef.current) {
+        socketRef.current.emit('chat:typing', {
+          classroomId,
+          isTyping: false,
+        });
         socketRef.current.emit('classroom:leave', { classroomId });
         socketRef.current.disconnect();
       }
 
+      handleLeaveCall();
       cleanupRealtimeState();
     };
-  }, [classroom, classroomId, cleanupRealtimeState, connectWorkspaceSocket, loadError]);
+  }, [classroom, classroomId, cleanupRealtimeState, connectWorkspaceSocket, handleLeaveCall, loadError]);
 
   const onEditorMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
@@ -944,7 +1216,7 @@ export default function ClassroomWorkspacePage() {
       </header>
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_280px] gap-4 h-[calc(100vh-138px)] min-h-[620px]">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4 h-[calc(100vh-138px)] min-h-[620px]">
           <section className="bg-white border border-slate-200 rounded-lg flex flex-col min-h-0">
             <div className="border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-wrap">
@@ -1655,48 +1927,39 @@ export default function ClassroomWorkspacePage() {
             </div>
           </section>
 
-          <aside className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col min-h-0">
-            <h2 className="text-sm font-semibold text-slate-900">Participants</h2>
-
-            {socketError && (
-              <p className="text-xs text-red-600 mt-2 border border-red-200 bg-red-50 rounded-md px-2.5 py-2">
-                {socketError}
-              </p>
-            )}
-
-            <ul className="mt-3 space-y-2 overflow-auto pr-1">
-              {participants.length === 0 ? (
-                <li className="text-sm text-slate-600">No active users yet.</li>
-              ) : (
-                participants.map((participant) => {
-                  const colorIndex = hashColorIndex(participant.userId);
-                  const isMe = participant.userId === currentUserId;
-
-                  return (
-                    <li key={participant.userId} className="border border-slate-200 rounded-md px-3 py-2 bg-slate-50">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`h-2.5 w-2.5 rounded-sm shrink-0 cc-presence-dot-${colorIndex}`} />
-                          <p className="text-sm text-slate-900 font-medium truncate">
-                            {participant.name} {isMe ? '(You)' : ''}
-                          </p>
-                        </div>
-                        <span className="text-[10px] uppercase tracking-wider text-slate-500">{participant.role}</span>
-                      </div>
-
-                      {participant.cursor ? (
-                        <p className="text-xs text-slate-600 mt-1">
-                          Cursor: Ln {participant.cursor.startLineNumber}, Col {participant.cursor.startColumn}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-slate-500 mt-1">Cursor inactive</p>
-                      )}
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </aside>
+          <CommunicationPanel
+            activeTab={communicationTab}
+            onTabChange={setCommunicationTab}
+            chatProps={{
+              messages: classroomMessages,
+              loading: classroomChatLoading,
+              loadError: classroomChatLoadError,
+              error: classroomChatError || socketError,
+              currentUserId,
+              messageInput: classroomChatInput,
+              onMessageInputChange: handleClassroomChatInputChange,
+              onSendMessage: handleClassroomMessageSend,
+              sending: classroomChatSending,
+              typingUsers,
+              connected: isConnected,
+            }}
+            callProps={{
+              isInCall,
+              isJoining: isJoiningCall,
+              callMode,
+              onCallModeChange: setCallMode,
+              onJoinCall: handleJoinCall,
+              onLeaveCall: handleLeaveCall,
+              token: livekitToken,
+              serverUrl: livekitServerUrl,
+              onParticipantIdsChange: setLivekitParticipantIds,
+              callError,
+            }}
+            participantProps={{
+              participants: communicationParticipants,
+              currentUserId,
+            }}
+          />
         </div>
       </main>
     </div>

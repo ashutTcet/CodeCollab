@@ -93,6 +93,27 @@ export const api = {
     return request(`/classrooms/${id}/students`);
   },
 
+  getClassroomMessages(classroomId, options = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) {
+      params.set('limit', String(options.limit));
+    }
+    if (options.before) {
+      params.set('before', String(options.before));
+    }
+
+    const query = params.toString();
+    const suffix = query ? `?${query}` : '';
+    return request(`/classrooms/${classroomId}/messages${suffix}`);
+  },
+
+  getLivekitToken(payload) {
+    return request('/livekit/token', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   getExecutionLanguages() {
     return request('/code/languages');
   },

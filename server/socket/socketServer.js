@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 const cookie = require('cookie');
 const collaborationService = require('../services/collaborationService');
 const User = require('../models/User');
+const ChatMessage = require('../models/ChatMessage');
+
+const MAX_CHAT_MESSAGE_LENGTH = 2000;
 
 function extractTokenFromSocket(socket) {
   const cookieHeader = socket.handshake.headers?.cookie || '';
@@ -87,6 +90,35 @@ function emitClassroomError(socket, message) {
   socket.emit('classroom:error', { message });
 }
 
+function buildChatPresencePayload(classroomId, participants) {
+  return {
+    classroomId,
+    participants: participants.map((participant) => ({
+      userId: participant.userId,
+      name: participant.name,
+      role: participant.role,
+      status: 'online',
+      connectedSockets: participant.connectedSockets,
+    })),
+  };
+}
+
+function buildChatMessagePayload(messageDoc, senderUser) {
+  return {
+    id: messageDoc._id,
+    classroomId: messageDoc.classroom.toString(),
+    message: messageDoc.message,
+    type: messageDoc.type,
+    createdAt: messageDoc.createdAt,
+    updatedAt: messageDoc.updatedAt,
+    sender: {
+      id: senderUser.id,
+      name: senderUser.name,
+      role: senderUser.role,
+    },
+  };
+}
+
 async function handleLeave(io, socket) {
   const activeClassroomId = socket.data.classroomId;
   if (!activeClassroomId) {
@@ -98,10 +130,14 @@ async function handleLeave(io, socket) {
 
   if (session) {
     collaborationService.removeParticipant(session, socket.id);
+    const participants = collaborationService.listParticipants(session);
+
     io.to(roomName).emit('presence:update', {
       classroomId: activeClassroomId,
-      participants: collaborationService.listParticipants(session),
+      participants,
     });
+
+    io.to(roomName).emit('chat:presence', buildChatPresencePayload(activeClassroomId, participants));
 
     collaborationService.scheduleCleanupIfEmpty(activeClassroomId);
   }
@@ -200,10 +236,14 @@ async function initializeSocketServer(httpServer) {
           update: Buffer.from(collaborationService.getDocumentUpdate(session)),
         });
 
+        const participants = collaborationService.listParticipants(session);
+
         io.to(roomName).emit('presence:update', {
           classroomId,
-          participants: collaborationService.listParticipants(session),
+          participants,
         });
+
+        io.to(roomName).emit('chat:presence', buildChatPresencePayload(classroomId, participants));
       } catch (error) {
         const status = error.status || 500;
         const message = status >= 500 ? 'Failed to join classroom workspace.' : error.message;
@@ -254,10 +294,96 @@ async function initializeSocketServer(httpServer) {
 
       collaborationService.updateCursor(session, socket.id, cursor);
 
+      const participants = collaborationService.listParticipants(session);
+
       io.to(collaborationService.roomName(classroomId)).emit('presence:update', {
         classroomId,
-        participants: collaborationService.listParticipants(session),
+        participants,
       });
+
+      io.to(collaborationService.roomName(classroomId)).emit(
+        'chat:presence',
+        buildChatPresencePayload(classroomId, participants)
+      );
+    });
+
+    socket.on('chat:typing', (payload = {}) => {
+      const classroomId = String(payload.classroomId || '').trim();
+      const isTyping = Boolean(payload.isTyping);
+
+      if (!classroomId || socket.data.classroomId !== classroomId) {
+        return;
+      }
+
+      socket.to(collaborationService.roomName(classroomId)).emit('chat:typing', {
+        classroomId,
+        isTyping,
+        user: {
+          id: socket.user.id,
+          name: socket.user.name,
+          role: socket.user.role,
+        },
+      });
+    });
+
+    socket.on('chat:send', async (payload = {}) => {
+      try {
+        const classroomId = String(payload.classroomId || '').trim();
+        const message = String(payload.message || '').trim();
+
+        if (!classroomId || socket.data.classroomId !== classroomId) {
+          socket.emit('chat:error', {
+            classroomId,
+            message: 'You must join the classroom before sending messages.',
+          });
+          return;
+        }
+
+        await collaborationService.authorizeClassroomAccess({
+          classroomId,
+          userId: socket.user.id,
+          role: socket.user.role,
+        });
+
+        if (!message) {
+          socket.emit('chat:error', { classroomId, message: 'Message cannot be empty.' });
+          return;
+        }
+
+        if (message.length > MAX_CHAT_MESSAGE_LENGTH) {
+          socket.emit('chat:error', {
+            classroomId,
+            message: `Message exceeds ${MAX_CHAT_MESSAGE_LENGTH} characters.`,
+          });
+          return;
+        }
+
+        const savedMessage = await ChatMessage.create({
+          classroom: classroomId,
+          sender: socket.user.id,
+          message,
+          type: 'text',
+        });
+
+        io.to(collaborationService.roomName(classroomId)).emit(
+          'chat:message',
+          buildChatMessagePayload(savedMessage, socket.user)
+        );
+      } catch (error) {
+        if (error && error.status && error.status < 500) {
+          socket.emit('chat:error', {
+            classroomId: String(payload.classroomId || '').trim(),
+            message: error.message,
+          });
+          return;
+        }
+
+        console.error('[SocketChatSendError]', error);
+        socket.emit('chat:error', {
+          classroomId: String(payload.classroomId || '').trim(),
+          message: 'Failed to send message. Please try again.',
+        });
+      }
     });
 
     socket.on('language:update', async (payload = {}) => {
