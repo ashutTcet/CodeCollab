@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 const Classroom = require('../models/Classroom');
+const { ClassroomWorkspace } = require('../models/ClassroomWorkspace');
+const ChatMessage = require('../models/ChatMessage');
+const Submission = require('../models/Submission');
 const { generateRoomCode } = require('../utils/roomCode');
 const { normalizeClassroomSubject, SUPPORTED_CLASSROOM_SUBJECTS } = require('../config/classroomLanguages');
 
@@ -269,6 +272,43 @@ async function getClassroomStudents(req, res, next) {
   }
 }
 
+async function deleteClassroom(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid classroom ID' });
+    }
+
+    const classroom = await Classroom.findById(id);
+
+    if (!classroom) {
+      return res.status(404).json({ message: 'Classroom not found' });
+    }
+
+    // Verify teacher authorization
+    if (classroom.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You are not authorized to delete this classroom.' });
+    }
+
+    // Cascade delete associated workspace, chat messages, submissions, and the classroom itself
+    await Promise.all([
+      ClassroomWorkspace.deleteMany({ classroom: id }),
+      ChatMessage.deleteMany({ classroom: id }),
+      Submission.deleteMany({ classroom: id }),
+      Classroom.findByIdAndDelete(id),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Classroom and all associated workspace data have been permanently deleted.',
+      deletedClassroomId: id,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   createClassroom,
   getTeacherClassrooms,
@@ -276,4 +316,5 @@ module.exports = {
   getStudentClassrooms,
   getClassroomDetails,
   getClassroomStudents,
+  deleteClassroom,
 };

@@ -219,7 +219,7 @@ function FeatureCard({ icon: Icon, title, description }) {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8fbff] text-slate-900">
+    <div className="min-h-screen flex flex-col bg-[#f8fbff] dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100">
       {/* Global CodeCollab Navigation Bar */}
       <Navbar />
 
@@ -408,12 +408,12 @@ export default function HomePage() {
 
         {/* ─── Final CTA ─────────────────────────────────────────────────── */}
         <section id="final-cta" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-          <div className="bg-gradient-to-br from-brand-50 via-white to-sky-50 border border-brand-200 rounded-2xl p-8 sm:p-14 text-center shadow-sm relative overflow-hidden">
+          <div className="bg-gradient-to-br from-brand-50 via-white to-sky-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 border border-brand-200 dark:border-slate-800 rounded-2xl p-8 sm:p-14 text-center shadow-sm relative overflow-hidden">
             <div className="relative z-10 max-w-2xl mx-auto">
-              <p className="text-xs font-semibold uppercase tracking-widest text-brand-700 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-brand-700 dark:text-brand-400 mb-2">
                 Ready when you are
               </p>
-              <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
                 Turn remote coding into collaborative learning.
               </h2>
               <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed">

@@ -4,9 +4,11 @@ import Editor from '@monaco-editor/react';
 import { io } from 'socket.io-client';
 import * as Y from 'yjs';
 import '@livekit/components-styles';
+import { Sun, Moon } from 'lucide-react';
 import { api, SOCKET_BASE_URL } from '../lib/api';
 import { getMonacoLanguage, getStarterTemplate, listClassroomSubjects } from '../lib/classroomLanguages';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import CommunicationPanel from '../components/communication/CommunicationPanel';
 
 const MAX_CLASSROOM_CHAT_LENGTH = 2000;
@@ -64,6 +66,7 @@ export default function ClassroomWorkspacePage() {
   const { id: classroomId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
   const [classroom, setClassroom] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -1204,6 +1207,15 @@ export default function ClassroomWorkspacePage() {
             <span className="px-3 py-1.5 rounded-md border border-slate-300 bg-slate-50 text-xs font-semibold text-slate-700">
               Active Users: {activeUsers}
             </span>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-md border border-surface-400 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-brand-600 transition-colors flex items-center justify-center"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-slate-600" />}
+            </button>
             <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>
               Exit Classroom
             </button>
@@ -1235,6 +1247,7 @@ export default function ClassroomWorkspacePage() {
               <div className="flex-1 min-h-0 relative">
                 <Editor
                   height="100%"
+                  theme={isDark ? 'vs-dark' : 'light'}
                   defaultLanguage={getEditorLanguage(classroom.subject)}
                   options={{
                     minimap: { enabled: false },

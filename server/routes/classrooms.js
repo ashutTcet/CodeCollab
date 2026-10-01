@@ -8,6 +8,7 @@ const {
   getStudentClassrooms,
   getClassroomDetails,
   getClassroomStudents,
+  deleteClassroom,
 } = require('../controllers/classroomController');
 const { getClassroomMessages } = require('../controllers/chatController');
 const {
@@ -26,5 +27,6 @@ router.get('/:id/students', authMiddleware, requireRole('teacher'), getClassroom
 router.get('/:classroomId/progress', authMiddleware, requireRole('teacher'), getClassroomProgress);
 router.get('/:classroomId/progress/:studentId', authMiddleware, requireRole('teacher'), getClassroomStudentProgress);
 router.get('/:id', authMiddleware, getClassroomDetails);
+router.delete('/:id', authMiddleware, requireRole('teacher'), deleteClassroom);
 
 module.exports = router;

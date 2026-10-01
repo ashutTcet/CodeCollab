@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import DeleteClassroomModal from '../components/DeleteClassroomModal';
 import { api } from '../lib/api';
 
 export default function TeacherClassroomPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [classroom, setClassroom] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -95,13 +99,23 @@ export default function TeacherClassroomPage() {
 
                 <p className="text-xs text-slate-500 mt-4">Created: {new Date(classroom.createdAt).toLocaleString()}</p>
 
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Link to={`/classroom/${classroom.id}/workspace`} className="btn-primary">
-                    Open Workspace
-                  </Link>
-                  <Link to={`/teacher/classroom/${classroom.id}/progress`} className="btn-secondary">
-                    View Progress
-                  </Link>
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex flex-wrap gap-2">
+                    <Link to={`/classroom/${classroom.id}/workspace`} className="btn-primary">
+                      Open Workspace
+                    </Link>
+                    <Link to={`/teacher/classroom/${classroom.id}/progress`} className="btn-secondary">
+                      View Progress
+                    </Link>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete Classroom</span>
+                  </button>
                 </div>
               </section>
 
@@ -124,6 +138,15 @@ export default function TeacherClassroomPage() {
             </>
           ) : null}
         </div>
+
+        <DeleteClassroomModal
+          isOpen={showDeleteModal}
+          classroom={classroom}
+          onClose={() => setShowDeleteModal(false)}
+          onSuccess={() => {
+            navigate('/teacher/dashboard', { replace: true });
+          }}
+        />
       </main>
       <Footer />
     </div>

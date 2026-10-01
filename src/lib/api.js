@@ -93,6 +93,12 @@ export const api = {
     return request(`/classrooms/${id}/students`);
   },
 
+  deleteClassroom(id) {
+    return request(`/classrooms/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   getClassroomProgress(classroomId) {
     return request(`/classrooms/${classroomId}/progress`);
   },

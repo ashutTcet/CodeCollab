@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import CreateClassroomModal from '../components/CreateClassroomModal';
+import DeleteClassroomModal from '../components/DeleteClassroomModal';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -19,6 +21,7 @@ export default function TeacherDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deletingClassroom, setDeletingClassroom] = useState(null);
   const [copiedCode, setCopiedCode] = useState('');
 
   useEffect(() => {
@@ -147,12 +150,23 @@ export default function TeacherDashboardPage() {
                     <p className="text-xs text-slate-600">Room: {classroom.roomCode}</p>
                     <p className="text-xs text-slate-600">Students: {classroom.studentCount}</p>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" className="btn-secondary" onClick={() => handleCopyCode(classroom.roomCode)}>
-                        {copiedCode === classroom.roomCode ? 'Copied' : 'Copy Code'}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" className="btn-secondary" onClick={() => handleCopyCode(classroom.roomCode)}>
+                          {copiedCode === classroom.roomCode ? 'Copied' : 'Copy Code'}
+                        </button>
+                        <Link to={`/teacher/classroom/${classroom.id}`} className="btn-secondary">Open Classroom</Link>
+                        <Link to={`/classroom/${classroom.id}/workspace`} className="btn-primary">Open Workspace</Link>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingClassroom(classroom)}
+                        className="p-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-rose-600 hover:border-rose-300 dark:hover:text-rose-400 transition-colors"
+                        title="Delete Classroom"
+                        aria-label={`Delete ${classroom.name}`}
+                      >
+                        <Trash2 size={15} />
                       </button>
-                      <Link to={`/teacher/classroom/${classroom.id}`} className="btn-secondary">Open Classroom</Link>
-                      <Link to={`/classroom/${classroom.id}/workspace`} className="btn-primary">Open Workspace</Link>
                     </div>
                   </li>
                 ))}
@@ -182,6 +196,16 @@ export default function TeacherDashboardPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreateClassroom}
+      />
+
+      <DeleteClassroomModal
+        isOpen={Boolean(deletingClassroom)}
+        classroom={deletingClassroom}
+        onClose={() => setDeletingClassroom(null)}
+        onSuccess={(deletedId) => {
+          setClassrooms((prev) => prev.filter((c) => (c.id || c._id) !== deletedId));
+          setDeletingClassroom(null);
+        }}
       />
 
       <Footer />
